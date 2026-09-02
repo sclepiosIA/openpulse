@@ -20,7 +20,7 @@
 # il n'y a rien a compiler, et sa version suit celle du serveur.
 # =====================================================================
 
-FROM postgres:15
+FROM postgres:18
 
 # La version majeure est LUE sur l'image de base plutot que figee ici. La
 # figer ferait diverger silencieusement le greffon du serveur le jour ou la
