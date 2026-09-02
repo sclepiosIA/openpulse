@@ -188,7 +188,7 @@
     "y-prosemirror": "^1.3.7",
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.30",
-    "zod": "^3.25.76"
+    "zod": "^4.5.4"
   },
   "overrides": {
     "jspdf": "4.2.1",
