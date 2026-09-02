@@ -6,7 +6,7 @@
 # ============================================
 # Stage 1: Builder
 # ============================================
-FROM node:20-alpine AS builder
+FROM node:26-alpine AS builder
 
 # Arguments de build
 ARG NODE_ENV=production
@@ -36,7 +36,7 @@ RUN npm prune --production
 # ============================================
 # Stage 2: Production
 # ============================================
-FROM node:20-alpine AS production
+FROM node:26-alpine AS production
 
 # Arguments
 ARG NODE_ENV=production

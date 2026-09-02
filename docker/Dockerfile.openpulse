@@ -12,7 +12,7 @@
 # =====================================================================
 
 # --- construction -----------------------------------------------------
-FROM node:20-alpine AS construction
+FROM node:26-alpine AS construction
 
 WORKDIR /app
 

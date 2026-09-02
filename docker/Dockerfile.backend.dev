@@ -3,7 +3,7 @@
 # Hot reload avec nodemon/tsx
 # ============================================
 
-FROM node:20-alpine
+FROM node:26-alpine
 
 # Installer les dépendances système
 RUN apk add --no-cache python3 make g++ curl
