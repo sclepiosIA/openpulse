@@ -138,7 +138,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
-    "date-fns": "^3.6.0",
+    "date-fns": "^4.4.0",
     "docx": "^9.6.1",
     "dompurify": "^3.4.11",
     "embla-carousel-react": "^8.3.0",
