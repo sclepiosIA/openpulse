@@ -47,7 +47,7 @@ jobs:
           # superficiel suffit, mais il lui faut bien un dépôt.
           fetch-depth: 1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: npm
