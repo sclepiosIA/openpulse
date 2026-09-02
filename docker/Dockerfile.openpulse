@@ -86,7 +86,7 @@ RUN ORIGINES_API="$(node -e 'const u=new URL(process.env.VITE_SUPABASE_URL); con
     node tools/openrelease/verifier-csp-construite.mjs dist
 
 # --- service ----------------------------------------------------------
-FROM nginx:1.27-alpine AS service
+FROM nginx:1.31-alpine AS service
 
 # En-tetes de securite, dans un fragment inclus explicitement partout.
 #
