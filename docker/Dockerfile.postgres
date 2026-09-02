@@ -1,0 +1,39 @@
+# =====================================================================
+# Base de donnees OpenPulse : PostgreSQL 15 et wal2json.
+#
+# POURQUOI CETTE IMAGE EXISTE PLUTOT QUE `postgres:15` DIRECTEMENT
+# Le service temps reel lit les modifications dans le journal de
+# transactions, et exige pour cela le greffon de sortie `wal2json`. L'image
+# officielle de PostgreSQL ne l'embarque pas. Mesure sur une instance batie
+# dessus :
+#
+#   library "wal2json" may not be used as an output plugin
+#   (PoolingReplicationPreparationError, en boucle)
+#
+# Le symptome est particulierement trompeur : la connexion websocket
+# s'etablit (101 Switching Protocols), le canal est accepte (SUBSCRIBED), et
+# AUCUN evenement n'arrive jamais. Rien, dans l'application, ne distingue cet
+# etat d'une base ou il ne se passe simplement rien. Verifie en inserant une
+# ligne dans une table abonnee : evenement attendu, aucun recu en 15 s.
+#
+# Le greffon est fourni par Debian pour la version majeure correspondante :
+# il n'y a rien a compiler, et sa version suit celle du serveur.
+# =====================================================================
+
+FROM postgres:15
+
+# La version majeure est LUE sur l'image de base plutot que figee ici. La
+# figer ferait diverger silencieusement le greffon du serveur le jour ou la
+# base changera de version -- avec, de nouveau, un temps reel muet et sans
+# message.
+RUN set -eux; \
+    version_majeure="$(postgres --version | sed -E 's/.* ([0-9]+)\..*/\1/')"; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends "postgresql-${version_majeure}-wal2json"; \
+    apt-get clean; \
+    find /var/lib/apt/lists -mindepth 1 -delete
+
+# Controle a la construction : mieux vaut echouer ici que livrer une image
+# dont le defaut ne se verrait qu'a l'usage, et sans message.
+RUN test -f "$(pg_config --pkglibdir)/wal2json.so" \
+    || (echo "wal2json absent de l'image : le temps reel serait muet" >&2; exit 1)

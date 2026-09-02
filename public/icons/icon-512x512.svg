@@ -1,0 +1,8 @@
+<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="OpenPulse">
+  <title>OpenPulse</title>
+  <rect width="512" height="512" fill="#FAF6F3"></rect>
+  <g transform="translate(256 256) scale(4.6080) translate(-50 -50)">
+    <circle cx="22" cy="22" r="7.5" fill="#201916"></circle><circle cx="50" cy="22" r="7.5" fill="#201916"></circle><circle cx="78" cy="22" r="7.5" fill="#201916"></circle><circle cx="22" cy="50" r="7.5" fill="#201916"></circle><circle cx="78" cy="50" r="7.5" fill="#201916"></circle><circle cx="22" cy="78" r="7.5" fill="#201916"></circle><circle cx="50" cy="78" r="7.5" fill="#201916"></circle><circle cx="78" cy="78" r="7.5" fill="#201916"></circle>
+    <circle cx="50" cy="50" r="15" fill="#CB5A1A"></circle>
+  </g>
+</svg>

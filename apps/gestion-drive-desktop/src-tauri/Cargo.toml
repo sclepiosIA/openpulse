@@ -1,0 +1,38 @@
+[package]
+name = "gestion-drive-desktop"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Client desktop Gestion Drive (GSI)"
+
+[lib]
+name = "gestion_drive_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-log = "2"
+log = "0.4"
+serde = { workspace = true }
+serde_json = { workspace = true }
+sync-core = { package = "gestion-drive-sync-core", path = "../crates/sync-core" }
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "native-tls", "blocking"] }
+rusqlite = { workspace = true }
+tokio = { version = "1", features = ["sync", "time"] }
+url = "2"
+keyring = "3"
+
+[dev-dependencies]
+tempfile = "3"

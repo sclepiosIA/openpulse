@@ -1,0 +1,21 @@
+{
+  "module": "calendar",
+  "slo_group": "STANDARD",
+  "test_files": ["03_calendar_load.js"],
+  "endpoints": [
+    { "table": "events", "ops": ["READ"], "filter": "start_at=gte.<date>", "purpose": "month_view" },
+    { "table": "events", "ops": ["READ"], "filter": "attendees=cs.[<user_id>]", "purpose": "filter_by_attendee" }
+  ],
+  "edge_functions": [],
+  "concurrent_writes": true,
+  "realtime_channels": [
+    { "topic": "realtime:public:events", "events": ["INSERT", "UPDATE", "DELETE"], "purpose": "live calendar sync" }
+  ],
+  "slo": {
+    "p95_ms": 2500,
+    "p99_ms": 5000,
+    "error_rate": 0.05,
+    "checks_rate": 0.95
+  },
+  "notes": "Vue mois (50 events) + filter par attendee (GIN index sur attendees jsonb requis)."
+}

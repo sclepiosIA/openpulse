@@ -1,0 +1,62 @@
+name: Email Synchronization (fallback)
+
+# Depuis juillet 2026, la sync emails tourne toutes les minutes via pg_cron
+# (job `email-sync-1min`). Ce workflow est conservé comme filet de sécurité
+# manuel uniquement (workflow_dispatch) au cas où pg_cron serait indisponible.
+on:
+  workflow_dispatch: # trigger manuel uniquement
+
+jobs:
+  sync-emails:
+    # Exécuteur privé : ce job ne peut pas tourner sur une bifurcation, où
+    # aucun exécuteur de ce nom n'existe. Sans cette garde il resterait en
+    # attente indéfiniment — un contributeur externe n'y lirait aucune cause.
+    # Le dépôt d'origine déclare la variable EXECUTEURS_PRIVES à « oui ».
+    if: vars.EXECUTEURS_PRIVES == 'oui'
+    runs-on: [self-hosted, large-runner]
+    timeout-minutes: 30
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Sync emails via orchestrator
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            "$SUPABASE_URL/functions/v1/hourly-email-sync-and-analysis" \
+            -H "Content-Type: application/json" \
+            -H "X-CRON-Secret: $CRON_SECRET" \
+            -d '{"mode": "cron", "historical_backfill": false}')
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "Response: $body"
+          echo "HTTP Code: $http_code"
+
+          if [ "$http_code" != "200" ]; then
+            echo "::error::Email sync failed with HTTP $http_code"
+            exit 1
+          fi
+
+      - name: Notify on failure
+        if: failure()
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Email Sync Failed',
+              body: `Email synchronization failed on ${new Date().toISOString()}\n\nCheck the workflow logs for details.`,
+              labels: ['bug', 'automation']
+            })

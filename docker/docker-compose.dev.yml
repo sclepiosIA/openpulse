@@ -1,0 +1,139 @@
+# Docker Compose - Développement Local
+# Usage: docker-compose -f docker-compose.dev.yml up -d
+
+version: '3.8'
+
+services:
+  # ============================================
+  # Base de données PostgreSQL (Dev)
+  # ============================================
+  db:
+    image: postgres:15-alpine
+    container_name: marque-db-dev
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=marque
+      - POSTGRES_PASSWORD=marque_dev_password
+      - POSTGRES_DB=marque_db
+    volumes:
+      - postgres-data-dev:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d:ro
+    networks:
+      - marque-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marque -d marque_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # Redis (Dev)
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: marque-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - marque-dev-network
+
+  # ============================================
+  # Adminer (Interface BDD)
+  # ============================================
+  adminer:
+    image: adminer
+    container_name: marque-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - ADMINER_DEFAULT_SERVER=db
+    depends_on:
+      - db
+    networks:
+      - marque-dev-network
+
+  # ============================================
+  # MinIO (S3 Compatible - Dev)
+  # ============================================
+  minio:
+    image: minio/minio
+    container_name: marque-minio-dev
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    volumes:
+      - minio-data-dev:/data
+    networks:
+      - marque-dev-network
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # MailHog (SMTP Test)
+  # ============================================
+  mailhog:
+    image: mailhog/mailhog
+    container_name: marque-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    networks:
+      - marque-dev-network
+
+  # ============================================
+  # Stalwart Mail Server (JMAP/IMAP/SMTP - Local only)
+  # Admin: http://127.0.0.1:8180
+  # Mot de passe admin: docker logs marque-stalwart-dev
+  # API JMAP (inter-container): http://stalwart:8080/.well-known/jmap
+  # ⚠ NON exposé sur internet (127.0.0.1 binding)
+  # ⚠ Le système IMAP actuel (sync-emails) reste actif en fallback
+  # ============================================
+  stalwart:
+    image: stalwartlabs/mail-server:latest
+    container_name: marque-stalwart-dev
+    restart: unless-stopped
+    environment:
+      - STALWART_ADMIN_PASSWORD=marque-dev-admin
+    ports:
+      - "127.0.0.1:8180:8080"   # Web admin HTTP
+      - "127.0.0.1:8443:443"    # Web admin HTTPS
+      - "127.0.0.1:25:25"       # SMTP
+      - "127.0.0.1:587:587"     # SMTP submission
+      - "127.0.0.1:465:465"     # SMTPS
+      - "127.0.0.1:143:143"     # IMAP
+      - "127.0.0.1:993:993"     # IMAPS
+      - "127.0.0.1:4190:4190"   # ManageSieve
+    volumes:
+      - stalwart-data:/opt/stalwart-mail
+    networks:
+      - marque-dev-network
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  postgres-data-dev:
+    driver: local
+  minio-data-dev:
+    driver: local
+  stalwart-data:
+    driver: local
+
+networks:
+  marque-dev-network:
+    driver: bridge

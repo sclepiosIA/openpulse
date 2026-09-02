@@ -1,0 +1,88 @@
+name: Barriere courte
+
+# ---------------------------------------------------------------------------
+# POURQUOI CETTE BARRIERE EXISTE
+#
+# La barriere complete (`barriere.yml`) est manuelle, et c'est un choix : la
+# forge partage un executeur unique entre plusieurs applications, et un
+# declenchement a chaque poussee saturerait la file. Le controle permanent
+# devait donc etre le crochet local — sauf que husky ecrase `core.hooksPath`,
+# de sorte que la barriere n'a jamais tourne au commit (corrige dans
+# `.husky/pre-commit`, mais un crochet reste local et contournable).
+#
+# Resultat mesure le 2026-09-01 : `main` avait pris quatorze commits de retard
+# en portant un installateur qui ne demarre pas et quatre contrats rouges, sans
+# qu'aucun signal ne se declenche.
+#
+# Cette barriere-ci est donc VOLONTAIREMENT COURTE : uniquement sur `main`,
+# sans construction d'image, sans campagne de tests. Elle repond a une seule
+# question — « ce qui est sur main est-il coherent et installable ? » — en
+# quelques minutes, et laisse l'executeur disponible pour les autres projets.
+#
+# Ce qu'elle ne fait PAS, et qui reste du ressort de `barriere.yml` : la suite
+# complete (17 500 epreuves), la couverture, la construction des images.
+# ---------------------------------------------------------------------------
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Une seule barriere a la fois sur main : une poussee qui en suit une autre
+  # annule la precedente plutot que d'occuper l'executeur partage deux fois.
+  group: barriere-courte-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coherence:
+    name: Contrats, typage, licences
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Installer les dependances
+        run: npm ci
+
+      # Les contrats d'abord : ils sont les plus rapides, et ce sont eux qui
+      # avaient silencieusement rougi.
+      - name: Contrats
+        run: npm run test:contract
+
+      - name: Typage
+        run: npx tsc -p tsconfig.app.json --noEmit
+
+      - name: Linter
+        run: npm run lint
+
+      # Les papiers de licence sont la piece qu'un service juridique lit avant
+      # d'adopter : ils doivent correspondre a la mesure du jour.
+      - name: Licences des dependances
+        run: node tools/openrelease/verifier-notice-licences.mjs .
+
+      # Failles de l'arbre de PRODUCTION. INFORMATIF, deliberement.
+      #
+      # Au 2026-09-01 l'arbre porte 14 avis « high » (docx, pptxgenjs,
+      # react-router, postcss, nanoid, image-size...). Les rendre bloquants
+      # ferait naitre cette barriere rouge, et une barriere toujours rouge
+      # n'est plus lue : elle cesse de proteger de tout le reste. Le compte
+      # reste donc visible dans le journal, jusqu'a ce que la dette de
+      # dependances soit soldee — apres quoi ce `continue-on-error` doit
+      # disparaitre.
+      - name: Failles de dependances (informatif)
+        continue-on-error: true
+        run: npm audit --audit-level=high --omit=dev
+
+      # Fuites de marque, donnees personnelles, infrastructure privee.
+      - name: Barriere de publication
+        run: node tools/openrelease/scan.mjs --cible . --severite high

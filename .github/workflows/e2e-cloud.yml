@@ -1,0 +1,168 @@
+name: E2E Cloud — CRM Hospitalier (full run)
+
+# ---------------------------------------------------------------------------
+# Workflow autonome qui exécute run.py --profile full dans GitHub Actions.
+# Voir _outils/github-actions-parallel/README.md pour le contexte global.
+#
+# Installation :
+#   cp _outils/github-actions-parallel/e2e-cloud-crm.yml \
+#      5-CRM-Hospitalier/.github/workflows/e2e-cloud.yml
+#
+# Secrets repo requis :
+#   AZURE_OPENAI_API_KEY, AZURE_OPENAI_BASE_URL, AZURE_OPENAI_API_VERSION
+#   MARQUE_TEST_PASSWORD     — comptes de test CRM
+#   MARQUE_BASE_URL          — défaut https://gestion.exploitant.example.org/
+#   (optionnel) SLACK_WEBHOOK_URL
+# ---------------------------------------------------------------------------
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Profile (smoke | standard | full)'
+        required: false
+        default: 'full'
+      model:
+        description: 'Azure model (gpt-5.4 | gpt-5.4-pro | gpt-5-nano)'
+        required: false
+        default: 'gpt-5.4'
+      max_parallel:
+        description: 'Max parallel roles'
+        required: false
+        default: '2'
+  schedule:
+    # Nightly 02:15 UTC (4 apps lancées à 2-3 min d'écart pour éviter rate-limit
+    # Azure simultané sur 4 runners — le decoupling reste cloud-side).
+    - cron: '15 2 * * *'
+  repository_dispatch:
+    types: [orchestrate-e2e]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-cloud-crm-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  e2e_full:
+    name: CRM E2E full (browser-use + Azure)
+    # Exécuteur privé : ce job ne peut pas tourner sur une bifurcation, où
+    # aucun exécuteur de ce nom n'existe. Sans cette garde il resterait en
+    # attente indéfiniment — un contributeur externe n'y lirait aucune cause.
+    # Le dépôt d'origine déclare la variable EXECUTEURS_PRIVES à « oui ».
+    if: vars.EXECUTEURS_PRIVES == 'oui'
+    runs-on: [self-hosted, large-runner]
+    timeout-minutes: 180 # CRM full ≈ 2-3h
+    env:
+      PYTHONUNBUFFERED: '1'
+      CI: 'true'
+      PROFILE: ${{ inputs.profile || 'full' }}
+      MODEL: ${{ inputs.model || 'gpt-5.4' }}
+      MAX_PARALLEL: ${{ inputs.max_parallel || '2' }}
+      AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+      AZURE_OPENAI_BASE_URL: ${{ secrets.AZURE_OPENAI_BASE_URL }}
+      AZURE_OPENAI_API_VERSION: ${{ secrets.AZURE_OPENAI_API_VERSION }}
+      MARQUE_TEST_PASSWORD: ${{ secrets.MARQUE_TEST_PASSWORD }}
+      MARQUE_BASE_URL: ${{ secrets.MARQUE_BASE_URL }}
+      # Caps cloud
+      CRM_MIN_PARALLEL: '1'
+      CRM_MAX_PARALLEL: '2'
+      CRM_MAX_LOAD_AVG: '180'
+      CRM_MAX_RSS_GB: '5'
+      CRM_USE_ADAPTIVE_PARALLEL: '1'
+      BU_HEADLESS: '1'
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        env:
+          # Runner self-hosted macOS : setup-python tente d'écrire dans
+          # /Users/runner/hostedtoolcache (chemin des runners GitHub-hosted,
+          # inexistant/non accessible ici). On redirige vers un chemin writable.
+          AGENT_TOOLSDIRECTORY: ${{ runner.temp }}/hostedtoolcache
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: tests/browser-use/v3-azure/requirements.txt
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            xvfb fonts-liberation libnss3 libxss1 libasound2t64 libgbm1
+
+      - name: Install Python deps
+        working-directory: tests/browser-use/v3-azure
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            pip install browser-use playwright openai pydantic python-dotenv jinja2 rich
+          fi
+
+      - name: Install Playwright Chromium
+        run: python -m playwright install --with-deps chromium
+
+      - name: Sanity check creds
+        run: |
+          if [ -z "$AZURE_OPENAI_API_KEY" ] || [ -z "$MARQUE_TEST_PASSWORD" ]; then
+            echo "::error::AZURE_OPENAI_API_KEY ou MARQUE_TEST_PASSWORD manquant"
+            exit 1
+          fi
+
+      - name: Run CRM E2E
+        id: run_e2e
+        working-directory: tests/browser-use/v3-azure
+        run: |
+          xvfb-run -a python run.py \
+            --profile "$PROFILE" \
+            --model "$MODEL" \
+            --max-parallel "$MAX_PARALLEL" \
+            2>&1 | tee run-cloud-${{ github.run_id }}.log
+        continue-on-error: true
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: crm-e2e-reports-${{ github.run_id }}
+          path: |
+            tests/browser-use/v3-azure/reports/
+            tests/browser-use/v3-azure/logs/
+            tests/browser-use/v3-azure/run-cloud-*.log
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Job summary
+        if: always()
+        run: |
+          echo "## CRM E2E cloud run" >> $GITHUB_STEP_SUMMARY
+          echo "- Profile: $PROFILE / Model: $MODEL" >> $GITHUB_STEP_SUMMARY
+          echo "- Outcome: ${{ steps.run_e2e.outcome }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Artifact: crm-e2e-reports-${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Slack notify (optional)
+        if: always() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          STATUS="${{ steps.run_e2e.outcome }}"
+          EMOJI=":white_check_mark:"; [ "$STATUS" != "success" ] && EMOJI=":x:"
+          curl -sS -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"$EMOJI CRM E2E cloud — $STATUS — run ${{ github.run_id }}\"}" \
+            "$SLACK_WEBHOOK_URL" || true
+
+      - name: Fail job if E2E failed
+        if: steps.run_e2e.outcome == 'failure'
+        run: exit 1

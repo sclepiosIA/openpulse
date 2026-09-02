@@ -1,0 +1,330 @@
+openapi: 3.1.0
+info:
+  title: OpenPulse Platform API
+  version: "1.0.0"
+  description: |
+    Contrat d'API unifié reliant les 3 systèmes OpenPulse :
+    - **Gestion** (la plateforme initiale/Supabase) — héberge cette API, source de vérité.
+    - **Site Web** (la plateforme initiale/Supabase) — espace client.
+    - **Backend Produit** (PHP/MySQL externe) — solution clinique commercialisée.
+
+    Identité partagée : `etablissement_id` (UUID Gestion) propagé partout.
+    Authentification : `x-api-key` (clé hashée dans `api_keys`) + `Idempotency-Key` sur POST.
+    Webhooks sortants : signés HMAC SHA-256 via header `X-Marque-Signature`.
+servers:
+  - url: https://your-project-ref.supabase.co/functions/v1
+    description: Production (Gestion Supabase Edge Functions)
+
+security:
+  - ApiKeyAuth: []
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+  parameters:
+    EtabId:
+      name: etab_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 8, maxLength: 128 }
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        code: { type: string }
+        request_id: { type: string }
+    Client:
+      type: object
+      required: [etablissement_id, nom, statut]
+      properties:
+        etablissement_id: { type: string, format: uuid }
+        nom: { type: string }
+        siret: { type: string, nullable: true }
+        ville: { type: string, nullable: true }
+        statut: { type: string, enum: [prospect, deploiement, production, suspendu, archive] }
+        plan: { type: string, nullable: true }
+        modules_actifs: { type: array, items: { type: string } }
+        contacts_admin:
+          type: array
+          items:
+            type: object
+            properties:
+              email: { type: string, format: email }
+              nom: { type: string }
+              role: { type: string }
+        provisioned:
+          type: object
+          properties:
+            site_web: { type: boolean }
+            product: { type: boolean }
+    Entitlements:
+      type: object
+      properties:
+        etablissement_id: { type: string, format: uuid }
+        plan: { type: string }
+        modules:
+          type: array
+          items:
+            type: object
+            properties:
+              code: { type: string, example: "mco" }
+              enabled: { type: boolean }
+              quota: { type: integer, nullable: true }
+        valid_until: { type: string, format: date-time, nullable: true }
+    User:
+      type: object
+      properties:
+        external_id: { type: string }
+        email: { type: string, format: email }
+        nom: { type: string }
+        prenom: { type: string, nullable: true }
+        role: { type: string, enum: [admin, user, viewer] }
+        actif: { type: boolean }
+    LinkRequest:
+      type: object
+      required: [system, external_id]
+      properties:
+        system: { type: string, enum: [site_web, product] }
+        external_id: { type: string }
+    SsoIssueRequest:
+      type: object
+      required: [etablissement_id, user_email]
+      properties:
+        etablissement_id: { type: string, format: uuid }
+        user_email: { type: string, format: email }
+        target_path: { type: string, default: "/" }
+    SsoToken:
+      type: object
+      properties:
+        token: { type: string, description: "JWT signé HS256, exp 5 min" }
+        url: { type: string, description: "URL complète /v1/product/sso/exchange?token=..." }
+        expires_at: { type: string, format: date-time }
+    UsageEvent:
+      type: object
+      required: [etablissement_id, event_name, occurred_at]
+      properties:
+        etablissement_id: { type: string, format: uuid }
+        user_external_id: { type: string, nullable: true }
+        event_name: { type: string, example: "module.opened" }
+        module: { type: string, nullable: true, example: "urgences" }
+        occurred_at: { type: string, format: date-time }
+        metadata: { type: object, additionalProperties: true }
+    UsageBatchRequest:
+      type: object
+      required: [events]
+      properties:
+        events:
+          type: array
+          maxItems: 500
+          items: { $ref: "#/components/schemas/UsageEvent" }
+    UsageAggregates:
+      type: object
+      properties:
+        etablissement_id: { type: string, format: uuid }
+        period: { type: string, example: "2026-06" }
+        by_module:
+          type: array
+          items:
+            type: object
+            properties:
+              module: { type: string }
+              events_count: { type: integer }
+              active_users: { type: integer }
+    WebhookRegisterRequest:
+      type: object
+      required: [system, url, hmac_secret]
+      properties:
+        system: { type: string, enum: [site_web, product] }
+        url: { type: string, format: uri }
+        hmac_secret: { type: string, minLength: 32 }
+    TicketCreateRequest:
+      type: object
+      required: [etablissement_id, sujet, message]
+      properties:
+        etablissement_id: { type: string, format: uuid }
+        user_email: { type: string, format: email, nullable: true }
+        sujet: { type: string }
+        message: { type: string }
+        priorite: { type: string, enum: [basse, normale, haute, urgente], default: normale }
+        source: { type: string, default: "product" }
+
+paths:
+  /platform-health:
+    get:
+      summary: Healthcheck
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: "ok" }
+                  version: { type: string }
+                  time: { type: string, format: date-time }
+
+  /platform-clients/{etab_id}:
+    get:
+      summary: Fiche client canonique
+      parameters: [{ $ref: "#/components/parameters/EtabId" }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Client" }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+
+  /platform-clients-users/{etab_id}:
+    get:
+      summary: Liste des utilisateurs portail + produit
+      parameters: [{ $ref: "#/components/parameters/EtabId" }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/User" }
+    post:
+      summary: Crée un utilisateur (admin client) + invite
+      parameters:
+        - { $ref: "#/components/parameters/EtabId" }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, nom]
+              properties:
+                email: { type: string, format: email }
+                nom: { type: string }
+                prenom: { type: string }
+                role: { type: string, enum: [admin, user, viewer] }
+                send_invite: { type: boolean, default: true }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/User" } } } }
+
+  /platform-clients-entitlements/{etab_id}:
+    get:
+      summary: Modules & quotas actifs
+      parameters: [{ $ref: "#/components/parameters/EtabId" }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Entitlements" }
+
+  /platform-clients-link/{etab_id}:
+    post:
+      summary: Enregistre l'ID externe (Site Web ou Produit)
+      parameters:
+        - { $ref: "#/components/parameters/EtabId" }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LinkRequest" }
+      responses:
+        '200': { description: OK }
+
+  /platform-sso-issue:
+    post:
+      summary: Émet un JWT SSO vers le Produit (5 min)
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SsoIssueRequest" }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SsoToken" }
+
+  /platform-usage-events:
+    post:
+      summary: Ingestion batch télémétrie produit
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UsageBatchRequest" }
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted: { type: integer }
+                  rejected: { type: integer }
+
+  /platform-usage-aggregates:
+    get:
+      summary: Agrégats d'usage (mensuel)
+      parameters:
+        - name: etablissement_id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - name: period
+          in: query
+          schema: { type: string, example: "2026-06" }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UsageAggregates" }
+
+  /platform-tickets:
+    post:
+      summary: Crée un ticket support depuis le produit
+      parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TicketCreateRequest" }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ticket_id: { type: string, format: uuid }
+
+  /platform-webhooks-register:
+    post:
+      summary: Enregistre l'URL + secret HMAC d'un consommateur
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WebhookRegisterRequest" }
+      responses:
+        '201': { description: Created }

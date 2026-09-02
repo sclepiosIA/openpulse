@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Portrait par défaut">
+  <!--
+    Portrait de remplacement, sans personne identifiable.
+    Cible de la règle « assets-portrait-nominatif » : l'amont livre la
+    photographie d'une personne réelle (src/assets/dr-galindo.jpeg), utilisée
+    par src/components/formations/FounderCard.tsx et HeroSection.tsx. Cette
+    photographie est une donnée personnelle : elle est exclue et remplacée ici.
+  -->
+  <title>Portrait par défaut</title>
+  <rect width="256" height="256" rx="24" fill="#e0e7eb" />
+  <circle cx="128" cy="100" r="40" fill="#b9c2d5" />
+  <path d="M40 236c0-44 39-72 88-72s88 28 88 72z" fill="#b9c2d5" />
+</svg>

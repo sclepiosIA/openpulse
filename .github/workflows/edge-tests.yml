@@ -1,0 +1,154 @@
+name: Edge Functions Tests (Deno)
+
+# ---------------------------------------------------------------------------
+# Exécute les tests Deno des Edge Functions Supabase (supabase/functions/**).
+# Avant ce workflow, ces tests n'étaient JAMAIS lancés en CI (cf.
+# AUDIT_TESTS_2026-06-02.md). Ils sont aujourd'hui des smoke tests
+# d'intégration qui appellent ${VITE_SUPABASE_URL}/functions/v1/<fn> ; ils
+# nécessitent donc une instance Supabase joignable + la clé publishable.
+#
+# Secrets requis (sinon le job se met en SKIP propre, sans échec) :
+#   VITE_SUPABASE_URL              — URL de l'instance (de préférence staging)
+#   VITE_SUPABASE_PUBLISHABLE_KEY  — clé anon/publishable
+#
+# TODO (Phase 2) : remplacer ces smoke tests live par de vrais tests
+# unitaires (handlers purs + client Supabase mocké) ne nécessitant pas de
+# réseau, et faire échouer le job sur régression.
+# ---------------------------------------------------------------------------
+
+on:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'supabase/functions/**'
+      - '.github/workflows/edge-tests.yml'
+  schedule:
+    - cron: '0 3 * * 1' # Hebdomadaire, lundi 03:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deno-static-checks:
+    name: Deno lint + check (static, no network)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install Deno
+        run: |
+          curl -fsSL https://deno.land/install.sh | sh -s v2.1.4
+          echo "$HOME/.deno/bin" >> "$GITHUB_PATH"
+
+      # Lint statique sans réseau — bloque sur erreurs de syntaxe / pattern.
+      # Chantier structurant #1 (audit 2026-06-02) : amorce du pipeline CI
+      # backend (deno lint/check sur les 232 Edge Functions).
+      # Lint corpus complet (best-effort — corpus historique non normalisé).
+      - name: Deno lint (corpus complet, best-effort)
+        run: deno lint supabase/functions/ || true
+
+      # Lint BLOQUANT sur les modules `_shared/` via config scopée.
+      # Phase 2.5 CICD-02 : élève le gate sur les fondations stables.
+      - name: Deno lint (_shared, BLOQUANT)
+        run: deno lint --config supabase/functions/_shared/deno.lint.json supabase/functions/_shared/
+
+      - name: Deno check (type check shared modules, BLOQUANT)
+        run: |
+          # Type-check uniquement les modules partagés _shared/ (stables).
+          # Les 232 functions individuelles seront ajoutées progressivement.
+          if ls supabase/functions/_shared/*.ts >/dev/null 2>&1; then
+            deno check --no-lock supabase/functions/_shared/*.ts
+          fi
+
+      # Phase 2 CICD-02 : tests unitaires offline des modules `_shared/`.
+      # Bloquant — pas besoin de secrets ni de réseau.
+      # Élargi aux deux conventions de nommage (`*_test.ts` ET `*.test.ts`) —
+      # sans cela, 14 fichiers (`cors.test.ts`, `imap-client.test.ts`,
+      # `tracking-hmac.test.ts`, etc.) étaient silencieusement ignorés.
+      - name: Deno unit tests (_shared, offline, BLOQUANT)
+        run: |
+          shopt -s nullglob
+          tests=(supabase/functions/_shared/*_test.ts supabase/functions/_shared/*.test.ts)
+          if [ ${#tests[@]} -eq 0 ]; then
+            echo "Aucun test unitaire _shared trouvé — SKIP"
+            exit 0
+          fi
+          # Certains tests _shared vérifient des helpers hermétiques via un
+          # sous-process Deno isolé et des fichiers temporaires. Le périmètre
+          # reste offline/no-secret, mais nécessite write+run en plus de read.
+          deno test --no-check --allow-env --allow-read --allow-write --allow-run --allow-net "${tests[@]}"
+
+      # Tests unitaires des `supabase/functions/*/index.test.ts` — ~180 fichiers
+      # purs (lecture de source + regex), aucun appel réseau. Lancés avec
+      # `--allow-read` uniquement pour garantir l'absence d'I/O sortant.
+      # Best-effort le temps de stabiliser le corpus, puis à passer bloquant.
+      - name: Deno unit tests (functions index.test.ts, read-only, best-effort)
+        run: |
+          shopt -s nullglob
+          tests=(supabase/functions/*/index.test.ts)
+          if [ ${#tests[@]} -eq 0 ]; then
+            echo "Aucun index.test.ts trouvé — SKIP"
+            exit 0
+          fi
+          deno test --no-check --allow-read "${tests[@]}" || true
+
+      # Phase 4 CICD-02 : budget dégressif `error-sanitizer` sur Edge Functions.
+      # Bloque toute NOUVELLE fonction sans le sanitizer (règle projet).
+      - name: Setup Node (for budget script)
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '20'
+
+      - name: Edge Functions — error-sanitizer budget
+        run: node scripts/edge-error-sanitizer-budget.mjs
+
+  deno-tests:
+    name: Deno tests (supabase/functions — LIVE, gated)
+    # ⚠️ Job LIVE — DÉSACTIVÉ TANT QUE :
+    #   (a) un runner self-hosted taggé `large-runner` n'est pas provisionné,
+    #   (b) un projet Supabase STAGING dédié n'est pas créé avec ses secrets
+    #       propres (VITE_SUPABASE_URL + VITE_SUPABASE_PUBLISHABLE_KEY).
+    # Ne JAMAIS pointer ce job sur la prod `your-project-ref` :
+    # il taperait Azure GPT-5, IMAP, écrirait des données parasites et
+    # consommerait des quotas à chaque PR.
+    # Exécuteur privé : ce job ne peut pas tourner sur une bifurcation, où
+    # aucun exécuteur de ce nom n'existe. Sans cette garde il resterait en
+    # attente indéfiniment — un contributeur externe n'y lirait aucune cause.
+    # Le dépôt d'origine déclare la variable EXECUTEURS_PRIVES à « oui ».
+    if: vars.EXECUTEURS_PRIVES == 'oui' && (${{ false }})
+    runs-on: [self-hosted, large-runner]
+    timeout-minutes: 15
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install Deno
+        run: |
+          curl -fsSL https://deno.land/install.sh | sh -s v2.1.4
+          echo "$HOME/.deno/bin" >> "$GITHUB_PATH"
+
+      - name: Run Edge Function tests
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::warning::Secrets VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY absents — tests Deno ignorés (SKIP)."
+            exit 0
+          fi
+          deno test --allow-net --allow-env --no-check supabase/functions/

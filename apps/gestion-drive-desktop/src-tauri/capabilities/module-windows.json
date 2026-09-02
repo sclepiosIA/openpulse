@@ -1,0 +1,11 @@
+{
+  "$schema": "https://schema.tauri.app/capabilities/2",
+  "identifier": "module-windows",
+  "description": "Permissions minimales des fenêtres modules Gestion embarquées",
+  "local": true,
+  "windows": ["gestion-*"],
+  "permissions": [
+    "core:default",
+    "notification:default"
+  ]
+}

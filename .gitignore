@@ -1,0 +1,59 @@
+# Rapports du pipeline de publication : utiles en local, jamais versionnes.
+# Ils contiennent la liste detaillee de ce qui a ete exclu.
+.openrelease-report/
+
+# Dependances et sorties de build
+node_modules/
+dist/
+build/
+coverage/
+.turbo/
+.vite/
+
+# Tests
+playwright-report/
+test-results/
+blob-report/
+.last-run.json
+
+# Environnement local : jamais de secret dans le depot
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Outils
+.DS_Store
+*.log
+.venv/
+__pycache__/
+*.pyc
+
+# Binaires de release : servis par les releases de la forge, pas par git
+*.dmg
+*.msi
+*.exe
+*.AppImage
+*.deb
+*.app.tar.gz
+*.apk
+*.aab
+
+# Configuration de passerelle generee a l installation : porte les cles.
+docker/kong/kong.yml
+
+# Artefact regenere a chaque build (prebuild) : il porte le SHA du depot local.
+public/build-info.json
+
+# Regles de reecriture dont le CONTENU est lui-meme sensible : adresses IP de
+# l'infrastructure, domaines internes, domaines et telephones d'etablissements
+# tiers. Le manifeste public ne peut pas les porter -- pour designer une valeur
+# a masquer, il faut l'ecrire, et lui est publie.
+# L'extraction REFUSE de tourner si ce fichier manque : mieux vaut ne pas
+# extraire que produire un arbre ou ces valeurs sont restees en clair.
+tools/openrelease/manifest-prive.json
+
+# Artefacts de compilation incrementale de TypeScript. Ils avaient ete
+# versionnes par megarde en lancant `tsc --build` a la racine : ce sont des
+# caches machine, ils changent a chaque compilation et ne decrivent rien.
+*.tsbuildinfo

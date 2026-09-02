@@ -1,0 +1,30 @@
+{
+  "name": "OpenPulse",
+  "short_name": "OpenPulse",
+  "description": "Plateforme de gestion interne auto-hébergeable",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAF6F3",
+  "theme_color": "#CB5A1A",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "productivity",
+    "business"
+  ],
+  "lang": "fr-FR"
+}

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">OpenPulse Gestion</string>
+    <string name="title_activity_main">OpenPulse Gestion</string>
+    <string name="package_name">com.marque.gestion</string>
+    <string name="custom_url_scheme">com.marque.gestion</string>
+</resources>

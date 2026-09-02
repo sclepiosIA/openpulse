@@ -1,0 +1,182 @@
+{
+  "_doc": "Exceptions a la barriere de publication. Toute exception doit etre justifiee et la plus etroite possible : un motif de chemin precis, et si possible un motif d'extrait. Une exception large est une porte ouverte.",
+  "exceptions": [
+    {
+      "regle": "infra-privee-editeur",
+      "chemin": "^tools/openrelease/(scan|extract)\\.mjs$",
+      "motif": "l'outil porte les motifs de detection par construction"
+    },
+    {
+      "regle": "infra-privee-editeur",
+      "chemin": "^tools/openrelease/manifest\\.json$",
+      "motif": "le manifeste declare la reference amont a neutraliser"
+    },
+    {
+      "regle": "ip-publique-litterale",
+      "chemin": "^tools/openrelease/scan\\.mjs$",
+      "motif": "l'outil porte les motifs de detection par construction"
+    },
+    {
+      "regle": "marque-proscrite",
+      "chemin": "^tools/openrelease/scan\\.mjs$",
+      "motif": "l'outil porte les motifs de detection par construction"
+    },
+    {
+      "regle": "jwt-reel",
+      "chemin": "^tools/openrelease/(scan|extract)\\.mjs$",
+      "motif": "l'outil porte les motifs de detection par construction"
+    },
+    {
+      "regle": "cle-api-fournisseur",
+      "chemin": "^tools/openrelease/scan\\.mjs$",
+      "motif": "l'outil porte les motifs de detection par construction"
+    },
+    {
+      "regle": "cle-privee",
+      "chemin": "^tools/openrelease/scan\\.mjs$",
+      "motif": "l'outil porte les motifs de detection par construction"
+    },
+    {
+      "regle": "iban",
+      "chemin": "^tools/openrelease/scan\\.mjs$",
+      "motif": "l'outil porte les motifs de detection par construction"
+    },
+    {
+      "regle": "rls-desactivee",
+      "chemin": "^tools/openrelease/scan\\.mjs$",
+      "motif": "l'outil porte les motifs de detection par construction"
+    },
+    {
+      "regle": "policy-permissive",
+      "chemin": "^tools/openrelease/scan\\.mjs$",
+      "motif": "l'outil porte les motifs de detection par construction"
+    },
+    {
+      "regle": "cors-etoile",
+      "chemin": "^tools/openrelease/scan\\.mjs$",
+      "motif": "l'outil porte les motifs de detection par construction"
+    },
+    {
+      "regle": "secret-affecte",
+      "chemin": "^tools/openrelease/scan\\.mjs$",
+      "motif": "l'outil porte les motifs de detection par construction"
+    },
+    {
+      "regle": "email-etablissement-reel",
+      "chemin": "^tools/openrelease/scan\\.mjs$",
+      "motif": "l'outil porte les motifs de detection par construction"
+    },
+    {
+      "regle": "telephone-francais-formate",
+      "chemin": "^tools/openrelease/scan\\.mjs$",
+      "motif": "l'outil porte les motifs de detection par construction"
+    },
+    {
+      "regle": "chaine-connexion-avec-mdp",
+      "chemin": "^tools/openrelease/scan\\.mjs$",
+      "motif": "l'outil porte les motifs de detection par construction"
+    },
+    {
+      "regle": "policy-permissive",
+      "chemin": "^docs/(DATABASE_SCHEMA|SECURITY_).*\\.md$",
+      "motif": "exemple pedagogique dans la documentation, non applique a la base"
+    },
+    {
+      "regle": "second-domaine-editeur",
+      "chemin": "^tools/openrelease/scan\\.mjs$",
+      "motif": "l'outil porte les motifs de detection par construction"
+    },
+    {
+      "regle": "identifiant-paquet-natif",
+      "chemin": "^tools/openrelease/scan\\.mjs$",
+      "motif": "l'outil porte les motifs de detection par construction"
+    },
+    {
+      "regle": "infra-privee-editeur",
+      "chemin": "^CHANTIER\\.md$",
+      "motif": "le suivi de chantier nomme les trous de la barriere pour qu'ils soient traites"
+    },
+    {
+      "regle": "marque-proscrite",
+      "chemin": "^tools/openrelease/schema/neutraliser\\.py$",
+      "motif": "l'outil de neutralisation porte les motifs a retirer, par construction"
+    },
+    {
+      "regle": "infra-privee-editeur",
+      "chemin": "^tools/openrelease/schema/neutraliser\\.py$",
+      "motif": "l'outil de neutralisation porte les motifs a retirer, par construction"
+    },
+    {
+      "regle": "jwt-reel",
+      "chemin": "^tools/openrelease/schema/neutraliser\\.py$",
+      "motif": "l'outil de neutralisation porte les motifs a retirer, par construction"
+    },
+    {
+      "regle": "second-domaine-editeur",
+      "chemin": "^tools/openrelease/schema/neutraliser\\.py$",
+      "motif": "l'outil de neutralisation porte les motifs a retirer, par construction"
+    },
+    {
+      "regle": "marque-proscrite",
+      "chemin": "^tools/openrelease/manifest\\.json$",
+      "motif": "le manifeste porte les motifs a retirer dans ses regles de reecriture"
+    },
+    {
+      "regle": "second-domaine-editeur",
+      "chemin": "^tools/openrelease/manifest\\.json$",
+      "motif": "le manifeste porte les motifs a retirer dans ses regles de reecriture"
+    },
+    {
+      "regle": "ip-publique-litterale",
+      "chemin": "^tools/openrelease/manifest\\.json$",
+      "motif": "le manifeste porte les motifs a retirer dans ses regles de reecriture"
+    },
+    {
+      "regle": "identifiant-paquet-natif",
+      "chemin": "^tools/openrelease/manifest\\.json$",
+      "motif": "le manifeste porte les motifs a retirer dans ses regles de reecriture"
+    },
+    {
+      "regle": "email-etablissement-reel",
+      "chemin": "^tools/openrelease/manifest\\.json$",
+      "motif": "le manifeste porte les motifs a retirer dans ses regles de reecriture"
+    },
+    {
+      "regle": "cors-etoile",
+      "chemin": "^tools/openrelease/manifest\\.json$",
+      "motif": "le manifeste porte les motifs a retirer dans ses regles de reecriture"
+    },
+    {
+      "regle": "marque-editeur-nue",
+      "chemin": "^tools/openrelease/(scan\\.mjs|manifest\\.json|scan-allowlist\\.json|schema/neutraliser\\.py)$",
+      "motif": "l'outillage porte par construction le motif qu'il traque, y compris la liste d'exceptions qui doit nommer ce qu'elle excepte ; rien de tout cela ne part dans le produit livre"
+    },
+    {
+      "regle": "marque-editeur-nue",
+      "chemin": "^LICENSE$",
+      "extrait": "^SCLEPIOS",
+      "motif": "une licence MIT DOIT nommer le titulaire du droit d'auteur : le retirer rendrait la licence invalide. C'est la seule mention de l'editeur qui doit survivre a la distribution"
+    },
+    {
+      "regle": "marque-editeur-nue",
+      "chemin": "^SECURITY\\.md$",
+      "extrait": "^sclepios$",
+      "motif": "canal de signalement officiel et réellement relevé, requis pour une publication publique fail-closed"
+    },
+    {
+      "regle": "marque-editeur-nue",
+      "chemin": "^CHANTIER\\.md$",
+      "motif": "le journal du chantier doit nommer le defaut qu'il decrit ; il documente la distribution, il n'en fait pas partie"
+    },
+    {
+      "regle": "plateforme-edition-heritee",
+      "chemin": "^tools/openrelease/(scan\\.mjs|manifest\\.json|scan-allowlist\\.json)$",
+      "motif": "l'outillage porte le motif qu'il traque ; il ne part pas dans le produit livre"
+    }
+  ],
+  "_refus_de_tolerance": [
+    "Aucune exception sur supabase/migrations/** : le schema publie doit etre propre, pas tolere.",
+    "Aucune exception sur les regles de donnees personnelles hors outillage : une fixture qui declenche doit etre reecrite avec un domaine reserve (example.org, .test, .invalid), pas toleree.",
+    "Aucune exception sur marque-proscrite hors outillage."
+  ]
+}

@@ -1,0 +1,597 @@
+{
+  "/": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/dashboard": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/pulse": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/calendrier": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/emails": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/email-templates": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/email-analytics": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/email-classification-analytics": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/gestion-email-domains": [
+    "admin"
+  ],
+  "/appels": [
+    "admin",
+    "direction",
+    "copil",
+    "commercial",
+    "csm",
+    "chef_projet"
+  ],
+  "/todos": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/documents": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/base-connaissances": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/m/install": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/prise-rdv": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/meeting-notes": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/formulaires": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/notifications": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/tutoriels": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/activite": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/simulateur-roi": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/live-chat": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/utilisateurs/emargement": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/etablissements": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/groupes": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/partenaires": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/analyse-geographique": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/prospects": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "csm",
+    "commercial"
+  ],
+  "/prospects/scoring": [
+    "admin",
+    "direction",
+    "copil",
+    "commercial"
+  ],
+  "/catalogue-produits": [
+    "admin",
+    "direction",
+    "copil",
+    "commercial"
+  ],
+  "/deploiement": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "csm",
+    "commercial"
+  ],
+  "/production": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "csm",
+    "commercial"
+  ],
+  "/formations/analyse-globale": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/support": [
+    "admin",
+    "copil",
+    "chef_projet",
+    "csm"
+  ],
+  "/churn": [
+    "admin",
+    "copil",
+    "csm",
+    "direction"
+  ],
+  "/playbooks-csm": [
+    "admin",
+    "copil",
+    "csm",
+    "direction"
+  ],
+  "/csm": [
+    "admin",
+    "copil",
+    "csm",
+    "direction"
+  ],
+  "/projets": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "csm",
+    "commercial"
+  ],
+  "/gantt": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "csm",
+    "commercial"
+  ],
+  "/rd": [
+    "admin",
+    "copil",
+    "chef_projet"
+  ],
+  "/tresorerie": [
+    "admin",
+    "direction",
+    "copil"
+  ],
+  "/cfo": [
+    "admin",
+    "direction",
+    "copil"
+  ],
+  "/facturation": [
+    "admin",
+    "direction",
+    "copil"
+  ],
+  "/contrats": [
+    "admin",
+    "direction",
+    "copil"
+  ],
+  "/forecasting": [
+    "admin",
+    "commercial",
+    "copil",
+    "direction"
+  ],
+  "/attribution": [
+    "admin",
+    "commercial",
+    "copil",
+    "direction"
+  ],
+  "/automatisations": [
+    "admin",
+    "direction",
+    "copil"
+  ],
+  "/automatisations/sante": [
+    "admin",
+    "direction",
+    "copil"
+  ],
+  "/automatisations/runs": [
+    "admin",
+    "direction",
+    "copil"
+  ],
+  "/automatisations/webhooks-alertes": [
+    "admin",
+    "direction",
+    "copil"
+  ],
+  "/rapports": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/rapports-custom": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/people": [
+    "admin",
+    "direction",
+    "copil",
+    "rh"
+  ],
+  "/equipe": [
+    "admin",
+    "direction",
+    "copil",
+    "rh"
+  ],
+  "/rh": [
+    "admin",
+    "direction",
+    "copil",
+    "rh"
+  ],
+  "/rh/paie": [
+    "admin",
+    "direction",
+    "copil"
+  ],
+  "/recrutement": [
+    "admin",
+    "copil",
+    "rh",
+    "chef_projet"
+  ],
+  "/competences": [
+    "admin",
+    "copil",
+    "rh",
+    "chef_projet"
+  ],
+  "/parametres": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/parametres/feedbacks": [
+    "admin"
+  ],
+  "/parametres/visioconference": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/parametres/webdav": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/parametres/templates-taches": [
+    "admin"
+  ],
+  "/parametres/ia-usage": [
+    "admin"
+  ],
+  "/parametres/configuration": [
+    "admin"
+  ],
+  "/parametres/portail-client": [
+    "admin",
+    "direction",
+    "copil"
+  ],
+  "/parametres/monitor": [
+    "admin"
+  ],
+  "/gestion-utilisateurs": [
+    "admin"
+  ],
+  "/utilisateurs": [
+    "admin"
+  ],
+  "/configuration-systeme": [
+    "admin"
+  ],
+  "/gestion-base-donnees": [
+    "admin"
+  ],
+  "/gestion-securite": [
+    "admin"
+  ],
+  "/logs-systeme": [
+    "admin"
+  ],
+  "/gestion-notifications": [
+    "admin"
+  ],
+  "/rgpd": [
+    "admin"
+  ],
+  "/api-developer": [
+    "admin"
+  ],
+  "/import-commercial": [
+    "admin"
+  ],
+  "/backend": [
+    "admin",
+    "chef_projet",
+    "copil",
+    "direction"
+  ],
+  "/profil": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/forum-moderation": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/m/mail": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/m/todos": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/m/pulse": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/m/calendrier": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/m/documents": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/m/prise-rdv": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ],
+  "/m/jarvis": [
+    "admin",
+    "direction",
+    "copil",
+    "chef_projet",
+    "rh",
+    "csm",
+    "commercial"
+  ]
+}

@@ -1,0 +1,181 @@
+name: Migrations Dry-Run (Postgres)
+
+# ---------------------------------------------------------------------------
+# CICD-02 Phase 3 — Dry-run des NOUVELLES migrations Supabase contre un
+# Postgres jetable (service container). Bloque la PR si une migration ne
+# parse pas syntaxiquement (psql -v ON_ERROR_STOP=1).
+#
+# Stratégie : on N'APPLIQUE PAS le corpus historique (800+ migrations, dont
+# beaucoup référencent des objets Supabase managés non reproductibles —
+# pgsodium, pg_net, vault, realtime). À la place :
+#   1. Bootstrap Postgres avec rôles / schémas / extensions Supabase stubés.
+#   2. Diff git base..HEAD pour isoler les NOUVELLES migrations.
+#   3. Applique uniquement ces nouvelles migrations en lexical order.
+#   4. Fail-fast sur la première erreur SQL (syntaxe, dépendance, GRANT
+#      manquant, RLS sur table inexistante, etc.).
+#
+# Pourquoi pas le corpus complet : trop d'objets Supabase-managed à stuber
+# (realtime.subscription, vault.create_secret, pgsodium key vault, etc.).
+# Le but est d'attraper les régressions au moment où elles sont introduites.
+#
+# Si workflow_dispatch est lancé manuellement → on tente le corpus complet
+# best-effort (logué mais non bloquant) pour aider à mesurer la dette.
+# ---------------------------------------------------------------------------
+
+on:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'supabase/migrations/**'
+      - '.github/workflows/migrations-dry-run.yml'
+      - 'scripts/migrations-dry-run-bootstrap.sql'
+  workflow_dispatch:
+    inputs:
+      base_sha:
+        description: 'SHA de base pour détecter les nouvelles migrations'
+        required: false
+        type: string
+      full_corpus:
+        description: 'Tenter le corpus complet (best-effort, non bloquant)'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: read
+
+jobs:
+  dry-run:
+    name: Apply all migrations on disposable Postgres
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
+          disable-sudo: false
+
+      - name: Checkout (full history for diff)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Install psql client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql-client
+
+      - name: Wait for Postgres
+        run: |
+          for i in $(seq 1 30); do
+            pg_isready -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" && break
+            sleep 1
+          done
+
+      - name: Bootstrap Supabase-like environment
+        run: |
+          PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 -h "$PGHOST" -U "$PGUSER" -d postgres \
+            -f scripts/migrations-dry-run-bootstrap.sql
+
+      - name: Detect new migrations (vs base ref)
+        id: detect
+        run: |
+          set -euo pipefail
+          BASE="${{ github.event.inputs.base_sha || github.event.pull_request.base.sha }}"
+          if [ -z "$BASE" ]; then
+            # workflow_dispatch fallback
+            BASE="$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)"
+          fi
+          echo "Base ref: $BASE"
+          # Liste les fichiers SQL AJOUTÉS (status A) sous supabase/migrations/
+          new_files=$(git diff --name-only --diff-filter=A "$BASE"...HEAD -- 'supabase/migrations/*.sql' | sort || true)
+          echo "New migration files:"
+          echo "$new_files"
+          printf '%s\n' "$new_files" > /tmp/new-migrations.txt
+          count=$(grep -c . /tmp/new-migrations.txt || true)
+          count=${count:-0}
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+
+      - name: Static GRANT lint on new migrations
+        if: steps.detect.outputs.count != '0'
+        run: |
+          set -euo pipefail
+          mapfile -t files < /tmp/new-migrations.txt
+          # drop empty entries
+          filtered=()
+          for f in "${files[@]}"; do
+            [ -n "$f" ] && [ -f "$f" ] && filtered+=("$f")
+          done
+          if [ ${#filtered[@]} -gt 0 ]; then
+            node scripts/check-migration-grants.mjs "${filtered[@]}"
+          fi
+
+      - name: Apply new migrations (fail-fast on syntax errors)
+        if: steps.detect.outputs.count != '0'
+        run: |
+          set -euo pipefail
+          failed=0
+          failed_files=()
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            [ -f "$f" ] || continue
+            echo "::group::Applying $f"
+            if ! PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 -h "$PGHOST" -U "$PGUSER" -d postgres \
+                -f "$f" 2>&1 | tee /tmp/migration.log; then
+              failed=$((failed + 1))
+              failed_files+=("$f")
+              echo "::error file=$f::Migration failed (see log above)"
+            fi
+            echo "::endgroup::"
+          done < /tmp/new-migrations.txt
+          if [ "$failed" -gt 0 ]; then
+            echo "Failed migrations:"
+            printf '  - %s\n' "${failed_files[@]}"
+            exit 1
+          fi
+          echo "All new migrations applied successfully."
+
+      - name: Skip notice (no new migrations)
+        if: steps.detect.outputs.count == '0'
+        run: echo "No new migrations in this PR — dry-run skipped."
+
+      - name: Optional — full corpus dry-run (workflow_dispatch only, best-effort)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.full_corpus == 'true'
+        continue-on-error: true
+        run: |
+          set +e
+          count=0
+          failed=0
+          for f in $(ls -1 supabase/migrations/*.sql | sort); do
+            count=$((count + 1))
+            PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 -h "$PGHOST" -U "$PGUSER" -d postgres \
+              -f "$f" >/tmp/full.log 2>&1
+            if [ $? -ne 0 ]; then
+              failed=$((failed + 1))
+              echo "::warning file=$f::Failed (full corpus, non blocking)"
+            fi
+          done
+          echo "Full corpus: $count applied, $failed failed (non blocking)."
+

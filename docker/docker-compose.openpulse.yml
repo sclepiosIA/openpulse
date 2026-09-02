@@ -1,0 +1,295 @@
+# =====================================================================
+# OpenPulse — composition d'auto-hébergement.
+#
+# Pourquoi une nouvelle composition : celles héritées de l'amont ne montent pas
+# la couche de services dont l'application dépend (authentification, API REST
+# dérivée du schéma, stockage d'objets, exécution des fonctions de bord). Elles
+# montaient en revanche un schéma d'amorçage divergent qui rendait
+# l'authentification et la sécurité au niveau ligne inopérantes.
+#
+# Amorçage : ce fichier NE monte PAS de répertoire d'initialisation. Le schéma
+# est appliqué explicitement par scripts/installer.sh, qui vérifie d'abord que
+# la base est vierge — le schéma consolidé n'est pas idempotent.
+#
+# Démarrage : scripts/installer.sh (génère les secrets, applique le schéma,
+# crée le premier compte administrateur). Ne pas lancer `docker compose up`
+# directement au premier démarrage.
+# =====================================================================
+
+# Nom du projet Docker, et donc prefixe de TOUS les conteneurs, reseaux et
+# volumes de l'instance.
+#
+# Il etait fige a « openpulse ». Deux instances sur une meme machine — une
+# recette et une production, ou deux organisations — se seraient donc partage
+# les memes conteneurs et le meme volume de base : la seconde installation
+# aurait repris la premiere au lieu d'en creer une nouvelle, sans rien dire.
+#
+# `OPENPULSE_INSTANCE` permet de les separer. La valeur par defaut garde le
+# comportement d'avant pour une instance unique.
+name: ${OPENPULSE_INSTANCE:-openpulse}
+
+services:
+  db:
+    # Image derivee : PostgreSQL 15 plus le greffon wal2json, sans lequel le
+    # service temps reel ne peut lire aucune modification -- il s'abonne, la
+    # connexion est acceptee, et aucun evenement n'arrive jamais. Voir
+    # docker/Dockerfile.postgres pour la mesure qui l'a motivee.
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    image: openpulse-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD est requis}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+    command:
+      - postgres
+      - -c
+      - wal_level=logical
+      - -c
+      - max_connections=${POSTGRES_MAX_CONNECTIONS:-200}
+      # PostgreSQL 15.19 restreint les greffons de decodage utilisables par un
+      # role de replication non superutilisateur. La valeur livree vaut
+      # « pgoutput, test_decoding » : le service temps reel, qui se connecte
+      # avec supabase_admin et demande wal2json, se voyait refuser l'acces --
+      #
+      #   library "wal2json" may not be used as an output plugin  (SQLSTATE 42501)
+      #
+      # Cette restriction est recente ; les recettes d'installation ecrites
+      # avant elle n'en tiennent pas compte, et le symptome ne la designe pas :
+      # l'abonnement est accepte, puis plus rien n'arrive.
+      #
+      # On elargit la liste au strict necessaire plutot que de faire de
+      # supabase_admin un superutilisateur, ce qui lui donnerait bien davantage
+      # que le droit de lire le journal de transactions.
+      - -c
+      - output_plugin_libraries=pgoutput,test_decoding,wal2json
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d ${POSTGRES_DB:-postgres}']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [openpulse]
+
+  # API REST dérivée directement du schéma. C'est elle qui applique la sécurité
+  # au niveau ligne : elle se connecte avec un rôle sans privilège d'élévation.
+  rest:
+    image: postgrest/postgrest:v12.2.3
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${AUTHENTICATOR_PASSWORD:?AUTHENTICATOR_PASSWORD est requis}@db:5432/${POSTGRES_DB:-postgres}
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET:?JWT_SECRET est requis}
+      PGRST_DB_USE_LEGACY_GUCS: 'false'
+      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
+    networks: [openpulse]
+
+  # Authentification. enable_signup est FAUX par défaut : une instance
+  # fraîchement installée ne doit pas accepter les inscriptions ouvertes.
+  auth:
+    image: supabase/gotrue:v2.170.0
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: '9999'
+      API_EXTERNAL_URL: ${PUBLIC_URL:?PUBLIC_URL est requis}
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${AUTH_ADMIN_PASSWORD:?AUTH_ADMIN_PASSWORD est requis}@db:5432/${POSTGRES_DB:-postgres}?search_path=auth
+      GOTRUE_SITE_URL: ${PUBLIC_URL}
+      GOTRUE_URI_ALLOW_LIST: ${AUTH_REDIRECT_ALLOW_LIST:-}
+      GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP:-true}
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_JWT_EXP: ${JWT_EXPIRY:-3600}
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_MAILER_AUTOCONFIRM: ${MAILER_AUTOCONFIRM:-false}
+      GOTRUE_SMTP_HOST: ${SMTP_HOST:-}
+      GOTRUE_SMTP_PORT: ${SMTP_PORT:-587}
+      GOTRUE_SMTP_USER: ${SMTP_USER:-}
+      GOTRUE_SMTP_PASS: ${SMTP_PASSWORD:-}
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_FROM:-}
+      GOTRUE_MFA_ENABLED: ${MFA_ENABLED:-true}
+    networks: [openpulse]
+
+  # Temps réel. 102 fichiers de l'interface s'abonnent aux changements de la
+  # base (91 abonnements `postgres_changes`) : sans ce service, ces écrans se
+  # chargent normalement puis ne se mettent jamais à jour. La panne est
+  # silencieuse — aucune erreur, juste des données qui ne bougent plus.
+  #
+  # Le service applique ses propres migrations dans le schéma `_realtime`, à la
+  # manière de l'authentification et du stockage : rien de tout cela ne doit
+  # figurer dans le schéma d'amorçage.
+  realtime:
+    image: supabase/realtime:v2.34.47
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: '4000'
+      DB_HOST: db
+      DB_PORT: '5432'
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${REALTIME_ADMIN_PASSWORD:?REALTIME_ADMIN_PASSWORD est requis}
+      DB_NAME: ${POSTGRES_DB:-postgres}
+      DB_AFTER_CONNECT_QUERY: 'SET search_path TO _realtime'
+      DB_ENC_KEY: ${REALTIME_ENC_KEY:?REALTIME_ENC_KEY est requis}
+      API_JWT_SECRET: ${JWT_SECRET:?JWT_SECRET est requis}
+      SECRET_KEY_BASE: ${REALTIME_SECRET_KEY_BASE:?REALTIME_SECRET_KEY_BASE est requis}
+      ERL_AFLAGS: -proto_dist inet_tcp
+      DNS_NODES: "''"
+      RLIMIT_NOFILE: '10000'
+      APP_NAME: realtime
+      SEED_SELF_HOST: 'true'
+      # Le service temps reel est multi-locataire : il choisit le locataire
+      # d'apres le nom d'hote de la requete. La passerelle l'appelle sur
+      # http://realtime:4000, donc le locataire attendu s'appelle « realtime ».
+      #
+      # Sans cette ligne, le semis en cree un nomme « realtime-dev » (son
+      # defaut), et chaque connexion echoue sur TenantNotFound. Le symptome est
+      # trompeur : les services demarrent, l'etat est « Up », l'application se
+      # charge -- seules les mises a jour en direct manquent, sans message.
+      # Mesure sur cette instance : la connexion websocket refusee en boucle,
+      # badges et notifications muets.
+      SELF_HOST_TENANT_NAME: realtime
+      RUN_JANITOR: 'true'
+    command: >
+      sh -c "/app/bin/migrate &&
+             /app/bin/realtime eval 'Realtime.Release.seeds(Realtime.Repo)' &&
+             /app/bin/server"
+    networks: [openpulse]
+
+  storage:
+    image: supabase/storage-api:v1.14.5
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ANON_KEY: ${ANON_KEY:?ANON_KEY est requis}
+      SERVICE_KEY: ${SERVICE_ROLE_KEY:?SERVICE_ROLE_KEY est requis}
+      POSTGREST_URL: http://rest:3000
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgres://supabase_storage_admin:${STORAGE_ADMIN_PASSWORD:?STORAGE_ADMIN_PASSWORD est requis}@db:5432/${POSTGRES_DB:-postgres}
+      FILE_SIZE_LIMIT: ${STORAGE_FILE_SIZE_LIMIT:-52428800}
+      STORAGE_BACKEND: file
+      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+      TENANT_ID: openpulse
+      REGION: local
+      GLOBAL_S3_BUCKET: openpulse
+      ENABLE_IMAGE_TRANSFORMATION: 'false'
+    volumes:
+      - storage-data:/var/lib/storage
+    networks: [openpulse]
+
+  # Exécution des fonctions de bord. Le répertoire est monté en lecture seule :
+  # une instance ne modifie pas son propre code.
+  # Exige supabase/functions/, qui vient de l'extraction du code applicatif.
+  # Activer avec : docker compose --profile applicatif up -d
+  functions:
+    image: supabase/edge-runtime:v1.67.2
+    profiles: [applicatif]
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      OPENPULSE_INSTALLATION_CODE: ${OPENPULSE_INSTALLATION_CODE}
+      # SUPABASE_DB_URL n'est PAS transmise, et c'est deliberé. Elle portait le
+      # mot de passe du superutilisateur PostgreSQL, que le conteneur relaie a
+      # CHAQUE fonction de bord -- alors qu'aucune des 272 ne la lit. Une seule
+      # fonction compromise aurait donc obtenu un acces superutilisateur, et
+      # avec lui le contournement de toute la securite au niveau ligne. Les
+      # fonctions passent par l'API REST avec la cle de service, qui reste
+      # soumise aux regles d'acces.
+      VERIFY_JWT: ${VERIFY_JWT:-true}
+      # Vide par defaut : le runtime valide alors en HS256 avec JWT_SECRET.
+      # Ne se renseigne que si vos jetons sont signes en ES256 ou RS256.
+      SUPABASE_JWKS: ${SUPABASE_JWKS:-}
+    # Le conteneur transmet a chaque fonction l'integralite de son propre
+    # environnement. Sans ce chargement, les quelque cent variables des
+    # sections 5 a 13 du modele de configuration — cles de modeles, secrets de
+    # declencheurs, cle de chiffrement des identifiants de messagerie — sont
+    # absentes a l'execution alors que le code les lit. Les fonctions ne
+    # tombent pas : elles se replient en silence, et l'interface confirme des
+    # envois qui n'ont pas eu lieu.
+    env_file:
+      - ../.env
+    volumes:
+      - ../supabase/functions:/home/deno/functions:ro
+    # Le moteur attend le service d'entree LUI-MEME, pas le repertoire qui le
+    # contient : pointe sur « /home/deno/functions », il cherchait un index.ts a
+    # la racine des 272 fonctions et sortait sur « failed to read path », sans
+    # nommer le chemin manquant.
+    command: ['start', '--main-service', '/home/deno/functions/main']
+    networks: [openpulse]
+
+  # Passerelle : point d'entrée unique, c'est l'URL que le frontend appelle.
+  kong:
+    image: kong:2.8.1
+    restart: unless-stopped
+    depends_on: [rest, auth, storage, realtime]
+    environment:
+      KONG_DATABASE: 'off'
+      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+    volumes:
+      - ./kong/kong.yml:/home/kong/kong.yml:ro
+    ports:
+      - '${API_PORT:-8000}:8000'
+    networks: [openpulse]
+
+  # Exige le code source du frontend, qui vient de l'extraction.
+  # Activer avec : docker compose --profile applicatif up -d
+  frontend:
+    profiles: [applicatif]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.openpulse
+      args:
+        VITE_SUPABASE_URL: ${PUBLIC_API_URL:?PUBLIC_API_URL est requis}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${ANON_KEY}
+        VITE_BRAND_NAME: ${BRAND_NAME:-OpenPulse}
+        # Nom substitue dans index.html et dans les manifestes des applications
+        # installables. Sans cette ligne, la composition ne le transmettait pas
+        # et un adoptant ne pouvait pas renommer ces surfaces.
+        VITE_MARQUE_NOM_PRODUIT: ${VITE_MARQUE_NOM_PRODUIT:-${BRAND_NAME:-OpenPulse}}
+        # Empreinte du code construit. Le script d'empreinte EXIGE un SHA de 40
+        # caracteres : sans cette ligne, la construction de l'image echouait sur
+        # « OPENPULSE_GIT_SHA doit contenir un SHA Git complet ».
+        OPENPULSE_GIT_SHA: ${OPENPULSE_GIT_SHA:-}
+        VITE_CSP_IMG_EXTRA: ${VITE_CSP_IMG_EXTRA:-}
+        VITE_CSP_CONNECT_EXTRA: ${VITE_CSP_CONNECT_EXTRA:-}
+        VITE_CSP_FRAME_EXTRA: ${VITE_CSP_FRAME_EXTRA:-}
+        VITE_CSP_MEDIA_EXTRA: ${VITE_CSP_MEDIA_EXTRA:-}
+    restart: unless-stopped
+    depends_on: [kong]
+    ports:
+      - '${WEB_PORT:-8080}:80'
+    networks: [openpulse]
+
+volumes:
+  db-data:
+  storage-data:
+
+networks:
+  openpulse:
+    driver: bridge

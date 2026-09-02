@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+    <title>Hors ligne — OpenPulse</title>
+    <meta name="theme-color" content="#CB5A1A" />
+    <link rel="icon" href="/favicon.png" />
+    <style>
+      :root { color-scheme: light; }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0; padding: 0; min-height: 100vh;
+        font-family: 'IBM Plex Sans', system-ui, sans-serif;
+        background: #FAF6F3;
+        color: #201916;
+      }
+      .wrap {
+        max-width: 560px; margin: 0 auto; padding: 48px 24px;
+        display: flex; flex-direction: column; align-items: center; text-align: center; min-height: 100vh; justify-content: center;
+      }
+      .icon {
+        width: 64px; height: 64px; border: 1px solid #E9E1DB; border-radius: 14px;
+        background: #FFFFFF; color: #CB5A1A; display: flex; align-items: center; justify-content: center;
+        margin-bottom: 20px;
+      }
+      .icon svg { width: 30px; height: 30px; stroke: currentColor; }
+      h1 { font-size: 24px; margin: 0 0 8px; font-weight: 600; letter-spacing: -0.02em; }
+      p { color: #5A4F49; font-size: 15px; line-height: 1.5; margin: 0 0 24px; max-width: 440px; }
+      .card {
+        background: #FFFFFF; border: 1px solid #E9E1DB; border-radius: 12px;
+        padding: 20px; width: 100%;
+      }
+      .card-title { color: #5A4F49; font-size: 13px; font-weight: 600; }
+      .links { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+      .links a {
+        display: block; padding: 12px; border: 1px solid #E9E1DB; border-radius: 8px; text-decoration: none;
+        background: #F6F1ED; color: #201916; font-weight: 600; font-size: 14px;
+        transition: background 0.15s, border-color 0.15s;
+      }
+      .links a:hover { background: #EFE7E1; border-color: #DCD3CD; }
+      .links a:focus-visible, button:focus-visible { outline: 3px solid rgba(203,90,26,0.28); outline-offset: 2px; }
+      .pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 6px 12px; border-radius: 999px; background: #FBEFE7; color: #8A5637;
+        font-size: 12px; font-weight: 500; margin-bottom: 16px;
+      }
+      .dot { width: 8px; height: 8px; border-radius: 50%; background: #CB5A1A; animation: pulse 1.5s ease-in-out infinite; }
+      @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+      @media (prefers-reduced-motion: reduce) { .dot { animation: none; } }
+      button {
+        min-height: 40px; margin-top: 16px; padding: 10px 20px; border: 1px solid #201916; border-radius: 8px;
+        background: #201916; color: #FAF6F3; font: inherit; font-weight: 600; font-size: 14px; cursor: pointer;
+      }
+      button:hover { background: #3D3531; }
+      @media (max-width: 420px) { .links { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+          <path d="M8.5 16a6 6 0 0 1 7 0" />
+          <path d="M12 20h.01" />
+          <path d="m3 3 18 18" />
+        </svg>
+      </div>
+      <div class="pill"><span class="dot"></span> Aucune connexion réseau</div>
+      <h1>Vous êtes hors ligne</h1>
+      <p>Pas de panique : les pages que vous avez déjà consultées restent disponibles, et vos brouillons d'emails seront envoyés automatiquement dès que la connexion revient.</p>
+      <div class="card">
+        <strong class="card-title">Pages disponibles hors ligne</strong>
+        <div class="links">
+          <a href="/emails" onclick="recoverAndNavigate(event, this.href)">Emails</a>
+          <a href="/taches" onclick="recoverAndNavigate(event, this.href)">Tâches</a>
+          <a href="/etablissements" onclick="recoverAndNavigate(event, this.href)">Établissements</a>
+          <a href="/calendar" onclick="recoverAndNavigate(event, this.href)">Calendrier</a>
+        </div>
+        <button onclick="recoverAndNavigate(event, location.href)">Réessayer</button>
+      </div>
+    </div>
+    <script>
+      async function clearStalePwaState() {
+        try {
+          if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs
+              .filter((reg) => {
+                const urls = [reg.active, reg.installing, reg.waiting]
+                  .filter(Boolean)
+                  .map((worker) => worker.scriptURL || '');
+                return urls.some((url) => url.endsWith('/sw.js') || url.endsWith('/service-worker.js'));
+              })
+              .map((reg) => reg.unregister()));
+          }
+          if ('caches' in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys
+              .filter((key) => /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-|^(html-cache|static-resources|supabase-rest|supabase-api-cache|images-cache|styles-cache|scripts-cache|fonts-cache)/.test(key))
+              .map((key) => caches.delete(key)));
+          }
+        } catch (error) {
+          console.warn('[Offline recovery] Nettoyage cache/SW incomplet', error);
+        }
+      }
+
+      async function recoverAndNavigate(event, targetUrl) {
+        if (event && event.preventDefault) event.preventDefault();
+        if (navigator.onLine) {
+          await clearStalePwaState();
+        }
+        const url = new URL(targetUrl, location.origin);
+        url.searchParams.set('sw-recovery', String(Date.now()));
+        location.replace(url.toString());
+      }
+
+      window.addEventListener('online', () => recoverAndNavigate(null, location.href));
+    </script>
+  </body>
+</html>

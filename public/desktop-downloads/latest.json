@@ -1,0 +1,15 @@
+{
+  "version": "0.1.9",
+  "notes": "Mise à jour Gestion Desktop",
+  "pub_date": "2026-07-14T22:13:28Z",
+  "platforms": {
+    "darwin-aarch64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUVnpuNmFhbHU4UzBIcmM0aTIxTlYxTjQ1TW1sTlhjQU1ibVB3Qm0ydUoxZG5LMDczWXk5TG93WE5qQ1M2WGg3MDJlSGYvZkFYT0tyOEtQMEhOcjkrRnc3MWEzYzVzUndrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0MDY1Nzk1CWZpbGU6Z2VzdGlvbi1kZXNrdG9wLW1hY29zLWFybTY0LTAuMS45LmFwcC50YXIuZ3oKanV0cUh3b3pRRERNVDNZVmpvZGMyVFlteFNtdUJsYzV6dm9XMDZwMGtwWDRVTkJLclczRnJBYWZPdGo0OFNKS21jSEJHN3RyYzdhSElJZldNSVp5QkE9PQo=",
+      "url": "https://objets.openpulse.example.org/desktop-downloads/gestion-desktop-macos-arm64-0.1.9.app.tar.gz"
+    },
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUVnpuNmFhbHU4Uyt2SGhIOXNWUVUrNTArbVora2srMld4a0dMZ2FtTmVtdmxYTGE3VVA4KzZkb0FzRzkvY1pKeEg3cEswR1pHOTY1OTJsdmg3K2VOT1U5Rlc5VHdKTXdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg0MDY3MDMyCWZpbGU6Z2VzdGlvbi1kZXNrdG9wLXdpbmRvd3MteDY0LXNldHVwLTAuMS45LmV4ZQpFT3Y2YnlVSGNqQ2lMV1JjS0c1dmdqcGx0ZWZvSTgxSENPSUNjTTdPVjZzV0dVbmpTZG1kdmxoV0NoR09DYWFjcFYzclVwaUIvWUd2ejN3U1EvQmJCUT09Cg==",
+      "url": "https://objets.openpulse.example.org/desktop-downloads/gestion-desktop-windows-x64-setup-0.1.9.exe"
+    }
+  }
+}

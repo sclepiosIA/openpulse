@@ -1,0 +1,26 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Jeton anon Supabase public requis par la migration cron historique; pas une clé de service."
+paths = [
+  '''supabase/migrations/20260716173058_ffad1689-4524-46ba-b894-1f9425f196fa.sql''',
+]
+
+[[allowlists]]
+description = """Exemple d'appel a l'API affiche sur la page developpeur.
+
+La regle `curl-auth-header` se declenche sur tout en-tete `Authorization: Bearer`
+present dans une commande curl, quelle que soit la valeur qui suit. Ici la valeur
+est le gabarit `VOTRE_CLE_API`, que l'utilisateur remplace par la sienne : il n'y
+a aucun secret dans le depot, et il ne peut pas y en avoir, puisque le texte est
+affiche a l'ecran pour etre copie.
+
+L'exception est nommee et bornee au fichier ET a la regle : tout autre secret dans
+ce meme fichier reste refuse."""
+paths = [
+  '''src/pages/ApiDeveloper\.tsx''',
+]
+regexes = [
+  '''Authorization: Bearer VOTRE_CLE_API''',
+]

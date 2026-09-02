@@ -1,0 +1,84 @@
+name: Coverage (vitest)
+
+# ---------------------------------------------------------------------------
+# Mesure la couverture des tests unitaires Vitest sur le runner self-hosted
+# (workspace propre, hors OneDrive — donc pas de saturation I/O qui empêche la
+# mesure en local). Volontairement NON bloquant sur les seuils : l'objectif ici
+# est de PUBLIER le chiffre réel (le gate 80% reste dans ci.yml/PR).
+# Tout en local/self-hosted, aucun service cloud SaaS.
+# ---------------------------------------------------------------------------
+
+on:
+  workflow_dispatch:
+  # Plus de mesure à CHAQUE push (saturait le runner Mac à chaque merge/la plateforme d'édition).
+  # Hebdomadaire (dimanche 03:00 UTC) + à la demande. La vraie mesure de masse
+  # passe par le pipeline Azure (openpulse-testgen / cov-heavy), hors Mac.
+  schedule:
+    - cron: '0 3 * * 0'
+
+concurrency:
+  group: coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    name: Vitest coverage (mesure)
+    # Exécuteur privé : ce job ne peut pas tourner sur une bifurcation, où
+    # aucun exécuteur de ce nom n'existe. Sans cette garde il resterait en
+    # attente indéfiniment — un contributeur externe n'y lirait aucune cause.
+    # Le dépôt d'origine déclare la variable EXECUTEURS_PRIVES à « oui ».
+    if: vars.EXECUTEURS_PRIVES == 'oui'
+    runs-on: [self-hosted, large-runner]
+    timeout-minutes: 30
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit coverage (mesure, non bloquant sur seuil)
+        id: cov
+        continue-on-error: true
+        run: npm run test:coverage
+
+      - name: Publish coverage to job summary
+        if: always()
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            node -e "const t=require('./coverage/coverage-summary.json').total; const f=(m)=>m.pct.toFixed(2); const line='Lines '+f(t.lines)+'% | Statements '+f(t.statements)+'% | Functions '+f(t.functions)+'% | Branches '+f(t.branches)+'%'; console.log(line);" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo '⚠️ coverage/coverage-summary.json absent (le run a échoué avant la génération).' | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 30
+
+      - name: Fail job when coverage execution failed
+        if: always()
+        run: |
+          if [ "${{ steps.cov.outcome }}" != 'success' ]; then
+            echo 'Coverage execution failed; the uploaded report is evidence only.' >&2
+            exit 1
+          fi

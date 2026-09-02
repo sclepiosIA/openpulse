@@ -1,0 +1,13 @@
+dist
+dist-lighthouse
+node_modules
+coverage
+*.min.js
+*.min.css
+pnpm-lock.yaml
+package-lock.json
+bun.lockb
+src/integrations/supabase/types.ts
+public/
+.devcontainer/
+supabase/migrations/

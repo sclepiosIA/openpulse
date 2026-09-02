@@ -1,0 +1,76 @@
+name: Mutation Testing (StrykerJS)
+
+on:
+  schedule:
+    - cron: '0 4 * * 0' # Hebdomadaire, dimanche 4h
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  mutation:
+    name: StrykerJS Mutation Testing
+    # Exécuteur privé : ce job ne peut pas tourner sur une bifurcation, où
+    # aucun exécuteur de ce nom n'existe. Sans cette garde il resterait en
+    # attente indéfiniment — un contributeur externe n'y lirait aucune cause.
+    # Le dépôt d'origine déclare la variable EXECUTEURS_PRIVES à « oui ».
+    if: vars.EXECUTEURS_PRIVES == 'oui'
+    runs-on: [self-hosted, large-runner]
+    timeout-minutes: 120
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Stryker mutation tests
+        run: npx stryker run --reporters json,html,clear-text,progress
+        timeout-minutes: 90
+
+      - name: Extract and update mutation score
+        run: |
+          if [ -f reports/mutation/mutation.json ]; then
+            SCORE=$(node -e "const r=require('./reports/mutation/mutation.json'); console.log(r.schemaVersion ? r.mutationScore?.toFixed(2) : 'N/A')" 2>/dev/null || echo "N/A")
+            echo "## 🧬 Mutation Testing Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Mutation Score | **${SCORE}%** |" >> $GITHUB_STEP_SUMMARY
+            echo "| Break threshold | 50% |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            if [ "$SCORE" != "N/A" ]; then
+              node -e "
+                const fs = require('fs');
+                const baseline = JSON.parse(fs.readFileSync('docs/auto/coverage-baseline.json', 'utf8'));
+                baseline.mutationTesting.lastScore = parseFloat('${SCORE}');
+                baseline.mutationTesting.lastRunAt = new Date().toISOString();
+                baseline.mutationTesting.note = 'Score publié automatiquement par CI mutation-testing.yml';
+                fs.writeFileSync('docs/auto/coverage-baseline.json', JSON.stringify(baseline, null, 2) + '\n');
+              "
+            fi
+          else
+            echo "⚠️ Mutation report not found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: mutation-report
+          path: reports/mutation/
+          retention-days: 30

@@ -1,0 +1,35 @@
+{
+  "id": "/m/calendrier",
+  "name": "OpenPulse Agenda",
+  "short_name": "Agenda",
+  "description": "Agenda et événements OpenPulse",
+  "start_url": "/m/calendrier",
+  "scope": "/m/calendrier",
+  "display": "fullscreen",
+  "display_override": [
+    "fullscreen",
+    "standalone"
+  ],
+  "orientation": "portrait",
+  "background_color": "#FAF6F3",
+  "theme_color": "#C3518E",
+  "icons": [
+    {
+      "src": "/icons/app-calendar-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/app-calendar-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "productivity",
+    "business"
+  ],
+  "lang": "fr-FR"
+}

@@ -1,0 +1,1 @@
+"""Tests openpulse-email-api."""

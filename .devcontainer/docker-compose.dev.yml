@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/typescript-node:18-bullseye
+    
+    volumes:
+      - ../..:/workspaces:cached
+      
+    # Overrides default command so things don't shut down after the process ends
+    command: sleep infinity
+    
+    # Network configuration for development
+    networks:
+      - dev-network
+    
+    # Environment variables for development
+    # Set your Supabase project values via .env.local or directly here with placeholders
+    environment:
+      - NODE_ENV=development
+      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-https://YOUR_PROJECT_ID.supabase.co}
+      - VITE_SUPABASE_PUBLISHABLE_KEY=${VITE_SUPABASE_PUBLISHABLE_KEY:-YOUR_ANON_KEY_HERE}
+      
+    # Port mapping for all development services
+    ports:
+      - "3000:3000"   # App preview
+      - "5173:5173"   # Vite dev server
+      - "8080:8080"   # Storybook
+      - "4173:4173"   # Vite preview
+      - "9090:9090"   # Prometheus (monitoring)
+      - "3100:3100"   # Loki (logs)
+      - "3200:3200"   # Tempo (tracing)
+      - "4317:4317"   # OpenTelemetry gRPC
+      - "4318:4318"   # OpenTelemetry HTTP
+
+  # Development database (optional - use Supabase hosted for simplicity)
+  postgres-dev:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: marque_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: devpass123
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - dev-network
+
+  # Redis for caching (optional)
+  redis-dev:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - dev-network
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  dev-network:
+    driver: bridge

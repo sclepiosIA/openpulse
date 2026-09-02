@@ -1,0 +1,95 @@
+name: Lighthouse CI Performance Check
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    # Hebdomadaire — lundi 02:30 UTC (dev IA-first : plus de run à chaque push)
+    - cron: '30 2 * * 1'
+  workflow_dispatch:
+
+jobs:
+  lighthouse:
+    # Exécuteur privé : ce job ne peut pas tourner sur une bifurcation, où
+    # aucun exécuteur de ce nom n'existe. Sans cette garde il resterait en
+    # attente indéfiniment — un contributeur externe n'y lirait aucune cause.
+    # Le dépôt d'origine déclare la variable EXECUTEURS_PRIVES à « oui ».
+    if: vars.EXECUTEURS_PRIVES == 'oui'
+    runs-on: [self-hosted, large-runner]
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build app
+        run: npm run build
+
+      - name: Serve app
+        run: |
+          npm install -g serve
+          # Port 8080 pour matcher lighthouserc.json (3000 est souvent occupé sur le runner self-hosted)
+          serve -s dist -l 8080 &
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080 >/dev/null; then echo "serve ready"; break; fi
+            sleep 1
+          done
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@3e7e23fb74242897f95c0ba9cabad3d0227b9b18 # v12.6.2
+        with:
+          configPath: './lighthouserc.json'
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+      - name: Comment PR with Lighthouse results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            try {
+              const resultsPath = path.join('.lighthouseci', 'manifest.json');
+              if (fs.existsSync(resultsPath)) {
+                const manifest = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
+                const summary = manifest.summary;
+                
+                const comment = `## 🚀 Lighthouse Performance Report
+                
+                | Metric | Score | Status |
+                |--------|-------|--------|
+                | Performance | ${summary.performance || 'N/A'} | ${summary.performance >= 80 ? '✅' : '❌'} |
+                | Accessibility | ${summary.accessibility || 'N/A'} | ${summary.accessibility >= 90 ? '✅' : '⚠️'} |
+                | Best Practices | ${summary.bestPractices || 'N/A'} | ${summary.bestPractices >= 90 ? '✅' : '⚠️'} |
+                | SEO | ${summary.seo || 'N/A'} | ${summary.seo >= 90 ? '✅' : '⚠️'} |
+                
+                ${summary.performance < 80 ? '❌ **Performance below threshold (80)**' : '✅ Performance meets threshold'}
+                
+                [View detailed report](${manifest.url})`;
+                
+                github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: comment
+                });
+              }
+            } catch (error) {
+              console.log('Could not read Lighthouse results:', error);
+            }

@@ -1,0 +1,98 @@
+# CRM Hospitalier — Flow 04 : Pulse (messagerie interne) — envoyer message + notif
+# Tests : DM creation, file upload, push notification reception.
+
+appId: com.marque.gestion
+env:
+  EMAIL: csm@exploitant.example.org
+  PASSWORD: ${MARQUE_TEST_PASSWORD}
+---
+- clearKeychain
+- launchApp:
+    permissions:
+      notifications: allow
+      camera: allow
+      photos: allow
+      microphone: allow
+
+- tapOn: { text: ".*[Ss]e connecter.*" }
+- tapOn: { id: "email" }
+- inputText: ${EMAIL}
+- tapOn: { id: "password" }
+- inputText: ${PASSWORD}
+- tapOn: { text: ".*[Vv]alider.*|.*[Cc]onnexion.*" }
+- waitForAnimationToEnd: { timeout: 8000 }
+
+# Aller Pulse
+- openLink: "https://gestion.exploitant.example.org/pulse"
+- waitForAnimationToEnd: { timeout: 5000 }
+- takeScreenshot: crm-pulse-01-inbox
+
+# Nouvelle conversation
+- tapOn:
+    text: ".*\\+.*|.*[Nn]ouveau.*|.*[Nn]ew.*conv.*"
+- waitForAnimationToEnd: { timeout: 3000 }
+
+# Cherche destinataire (admin)
+- tapOn:
+    id: "search-user"
+    optional: true
+- inputText: "admin"
+- waitForAnimationToEnd: { timeout: 2000 }
+- tapOn:
+    text: ".*admin@exploitant.example.org.*"
+- waitForAnimationToEnd: { timeout: 3000 }
+
+# Envoie message texte
+- tapOn:
+    id: "message-input"
+    optional: true
+- tapOn:
+    text: ".*[Tt]apez.*message.*"
+    optional: true
+- inputText: "BU-Pentest : test Pulse depuis Maestro flow 04"
+- tapOn: { id: "send-button" }
+- waitForAnimationToEnd: { timeout: 3000 }
+- takeScreenshot: crm-pulse-02-message-sent
+
+# Vérifie message apparu
+- assertVisible: ".*BU-Pentest.*test Pulse.*"
+
+# Test 2 : envoie attachment (photo)
+- tapOn:
+    id: "attach-button"
+    optional: true
+- tapOn:
+    text: ".*[Pp]hoto.*|.*[Cc]amera.*|.*📷.*"
+- waitForAnimationToEnd: { timeout: 5000 }
+- runFlow:
+    when:
+      visible: ".*[Aa]llow.*|.*[Aa]utoriser.*"
+    commands:
+      - tapOn: ".*[Aa]llow.*|.*[Aa]utoriser.*"
+- takeScreenshot: crm-pulse-03-camera-open
+
+# Capture (simulator) ou cancel pour ne pas pourrir le storage
+- tapOn:
+    text: ".*[Aa]nnuler.*|.*[Cc]ancel.*"
+    optional: true
+- waitForAnimationToEnd: { timeout: 2000 }
+
+# Test 3 : réaction emoji sur message
+- longPressOn: ".*BU-Pentest.*"
+- waitForAnimationToEnd: { timeout: 2000 }
+- runFlow:
+    when:
+      visible: ".*👍.*|.*[Rr]éaction.*"
+    commands:
+      - tapOn: "👍"
+- takeScreenshot: crm-pulse-04-reaction
+
+# Cleanup : tente de supprimer le message
+- longPressOn: ".*BU-Pentest.*test Pulse.*"
+- runFlow:
+    when:
+      visible: ".*[Ss]upprimer.*"
+    commands:
+      - tapOn: ".*[Ss]upprimer.*"
+      - tapOn: ".*[Cc]onfirmer.*"
+- takeScreenshot: crm-pulse-05-cleanup

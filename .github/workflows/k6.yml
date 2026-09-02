@@ -1,0 +1,163 @@
+name: k6 Load Tests (CRM)
+
+on:
+  pull_request:
+    paths:
+      - 'tests/load/**'
+      - '.github/workflows/k6.yml'
+  schedule:
+    - cron: '0 5 * * 0' # Dimanche 04:00 UTC (différé d'1h vs POINT)
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: 'k6 scenario (smoke, standard, stress, spike, soak, morning_peak)'
+        required: false
+        default: 'smoke'
+      test_file:
+        description: 'Specific test file (e.g. 03_chat_ia_load.js) or "all"'
+        required: false
+        default: 'all'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  k6-syntax-check:
+    name: k6 Syntax Check
+    # Exécuteur privé : ce job ne peut pas tourner sur une bifurcation, où
+    # aucun exécuteur de ce nom n'existe. Sans cette garde il resterait en
+    # attente indéfiniment — un contributeur externe n'y lirait aucune cause.
+    # Le dépôt d'origine déclare la variable EXECUTEURS_PRIVES à « oui ».
+    if: vars.EXECUTEURS_PRIVES == 'oui' && github.event_name == 'pull_request'
+    runs-on: [self-hosted, large-runner]
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Install k6
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          if command -v k6 >/dev/null 2>&1; then
+            echo "k6 already available: $(command -v k6)"
+          elif command -v brew >/dev/null 2>&1; then
+            brew install k6
+          else
+            curl -L https://github.com/grafana/k6/releases/download/v0.51.0/k6-v0.51.0-macos-arm64.zip -o k6.zip
+            unzip -o k6.zip
+            mv k6-v0.51.0-macos-arm64/k6 "$HOME/.local/bin/"
+          fi
+      - name: Validate k6 tests syntax (no run)
+        run: |
+          for f in tests/load/tests/*.js; do
+            echo "→ check $f"
+            k6 inspect "$f" || (echo "❌ Invalid syntax in $f" && exit 1)
+          done
+
+  k6-smoke:
+    name: k6 Smoke (PR + main)
+    # Exécuteur privé : ce job ne peut pas tourner sur une bifurcation, où
+    # aucun exécuteur de ce nom n'existe. Sans cette garde il resterait en
+    # attente indéfiniment — un contributeur externe n'y lirait aucune cause.
+    # Le dépôt d'origine déclare la variable EXECUTEURS_PRIVES à « oui ».
+    if: vars.EXECUTEURS_PRIVES == 'oui' && (github.event_name == 'pull_request' || github.event_name == 'push')
+    runs-on: [self-hosted, large-runner]
+    timeout-minutes: 10
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Install k6
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          if command -v k6 >/dev/null 2>&1; then
+            echo "k6 already available: $(command -v k6)"
+          elif command -v brew >/dev/null 2>&1; then
+            brew install k6
+          else
+            curl -L https://github.com/grafana/k6/releases/download/v0.51.0/k6-v0.51.0-macos-arm64.zip -o k6.zip
+            unzip -o k6.zip
+            mv k6-v0.51.0-macos-arm64/k6 "$HOME/.local/bin/"
+          fi
+      - name: Smoke test all
+        env:
+          SUPABASE_URL: ${{ secrets.MARQUE_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.MARQUE_SUPABASE_ANON_KEY }}
+          TEST_PASSWORD_SHARED: ${{ secrets.MARQUE_TEST_PASSWORD }}
+          K6_SCENARIO: smoke
+        run: |
+          mkdir -p k6-results
+          for f in tests/load/tests/*.js; do
+            name=$(basename "$f" .js)
+            echo "▶ smoke $name"
+            k6 run --summary-export "k6-results/${name}.json" "$f" || echo "⚠ $name failed (continue)"
+          done
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: k6-smoke-${{ github.run_id }}
+          path: k6-results/
+
+  k6-scheduled:
+    name: k6 Full (Sunday cron)
+    # Exécuteur privé : ce job ne peut pas tourner sur une bifurcation, où
+    # aucun exécuteur de ce nom n'existe. Sans cette garde il resterait en
+    # attente indéfiniment — un contributeur externe n'y lirait aucune cause.
+    # Le dépôt d'origine déclare la variable EXECUTEURS_PRIVES à « oui ».
+    if: vars.EXECUTEURS_PRIVES == 'oui' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.scenario != 'smoke'))
+    runs-on: [self-hosted, large-runner]
+    timeout-minutes: 45
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Install k6
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          if command -v k6 >/dev/null 2>&1; then
+            echo "k6 already available: $(command -v k6)"
+          elif command -v brew >/dev/null 2>&1; then
+            brew install k6
+          else
+            curl -L https://github.com/grafana/k6/releases/download/v0.51.0/k6-v0.51.0-macos-arm64.zip -o k6.zip
+            unzip -o k6.zip
+            mv k6-v0.51.0-macos-arm64/k6 "$HOME/.local/bin/"
+          fi
+      - name: Run scenario
+        env:
+          SUPABASE_URL: ${{ secrets.MARQUE_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.MARQUE_SUPABASE_ANON_KEY }}
+          TEST_PASSWORD_SHARED: ${{ secrets.MARQUE_TEST_PASSWORD }}
+          K6_SCENARIO: ${{ github.event.inputs.scenario || 'standard' }}
+        run: |
+          mkdir -p k6-results
+          target="${{ github.event.inputs.test_file }}"
+          if [ "$target" = "all" ] || [ -z "$target" ]; then
+            for f in tests/load/tests/*.js; do
+              name=$(basename "$f" .js)
+              k6 run --summary-export "k6-results/${name}.json" "$f" || true
+            done
+          else
+            k6 run --summary-export "k6-results/${target%.js}.json" "tests/load/tests/$target"
+          fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: k6-${{ github.event.inputs.scenario || 'cron' }}-${{ github.run_id }}
+          path: k6-results/
+          retention-days: 30

@@ -1,0 +1,20 @@
+{
+  "module": "contacts",
+  "slo_group": "STANDARD",
+  "test_files": ["02_contacts_crud.js"],
+  "endpoints": [
+    { "table": "contacts", "ops": ["READ"], "purpose": "list" },
+    { "table": "contacts", "ops": ["READ"], "filter": "or=(first_name.ilike.*,last_name.ilike.*)", "purpose": "search" },
+    { "table": "contacts", "ops": ["READ"], "filter": "id=eq.X", "purpose": "detail" }
+  ],
+  "edge_functions": [],
+  "concurrent_writes": false,
+  "realtime_channels": [],
+  "slo": {
+    "p95_ms": 2000,
+    "p99_ms": 4000,
+    "error_rate": 0.05,
+    "checks_rate": 0.95
+  },
+  "notes": "CRUD CSM workflow — liste 50, recherche full-text, fiche détaillée. Indexes Postgres requis sur first_name/last_name."
+}

@@ -1,0 +1,31 @@
+# ============================================
+# Dockerfile Backend - Développement
+# Hot reload avec nodemon/tsx
+# ============================================
+
+FROM node:20-alpine
+
+# Installer les dépendances système
+RUN apk add --no-cache python3 make g++ curl
+
+# Répertoire de travail
+WORKDIR /app
+
+# Copier les fichiers de dépendances
+COPY server/package.json server/package-lock.json* ./
+
+# Installer toutes les dépendances (dev inclus)
+RUN npm ci
+
+# Copier le code source
+COPY server/ .
+
+# Exposer le port
+EXPOSE 4000
+
+# Variables d'environnement
+ENV NODE_ENV=development
+ENV PORT=4000
+
+# Démarrer avec tsx watch pour hot reload
+CMD ["npm", "run", "dev"]

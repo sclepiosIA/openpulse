@@ -1,0 +1,5 @@
+supabase>=2.9.0
+openpyxl==3.1.2
+python-dotenv>=1.2.2,<2.0
+# Pin h11 to patched version to fix CVE-2025-43859 (HTTP request smuggling)
+h11>=0.16.0
