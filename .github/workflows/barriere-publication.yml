@@ -41,7 +41,7 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # La barrière interroge git pour respecter .gitignore : un clone
           # superficiel suffit, mais il lui faut bien un dépôt.
