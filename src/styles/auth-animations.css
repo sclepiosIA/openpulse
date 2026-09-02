@@ -1,0 +1,110 @@
+/* Auth page CSS animations — replaces framer-motion on critical login path */
+
+@keyframes auth-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes auth-slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes auth-slide-left {
+  from { opacity: 0; transform: translateX(-30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes auth-scale-in {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes auth-card-in {
+  from { opacity: 0; transform: translateX(50px) scale(0.95); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes auth-item-in {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes auth-wave-fade-in {
+  from { opacity: 0; transform: translateY(50px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes auth-float {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(10px, -20px); }
+}
+
+@keyframes auth-scale-y {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+@keyframes auth-pulse-slow {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.2); }
+}
+
+@keyframes auth-panel-slide-in {
+  from { opacity: 0; transform: translateX(-100px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes auth-error-in {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-auth-fade-in {
+  animation: auth-fade-in 0.6s cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+.animate-auth-slide-up {
+  animation: auth-slide-up 0.6s cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+.animate-auth-slide-left {
+  animation: auth-slide-left 0.6s cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+.animate-auth-scale-in {
+  animation: auth-scale-in 0.5s cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+.animate-auth-card-in {
+  animation: auth-card-in 0.5s cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+.animate-auth-item-in {
+  animation: auth-item-in 0.4s cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+.animate-auth-wave-fade-in {
+  animation: auth-wave-fade-in 1s ease-out both;
+}
+
+.animate-auth-float {
+  animation: auth-float ease-in-out infinite;
+}
+
+.animate-auth-scale-y {
+  transform-origin: top;
+  animation: auth-scale-y 0.4s ease-out both;
+}
+
+.animate-auth-pulse-slow {
+  animation: auth-pulse-slow 4s ease-in-out infinite;
+}
+
+.animate-auth-panel-slide-in {
+  animation: auth-panel-slide-in 0.6s cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+.animate-auth-error-in {
+  animation: auth-error-in 0.3s ease-out both;
+}

@@ -1,0 +1,77 @@
+# ============================================
+# Dockerfile Frontend - OpenPulse
+# Multi-stage build pour optimisation
+# ============================================
+
+# ============================================
+# Stage 1: Builder
+# ============================================
+FROM node:20-alpine AS builder
+
+# Arguments de build
+ARG NODE_ENV=production
+ARG OPENPULSE_GIT_SHA
+ARG OPENPULSE_BUILD_AT
+ENV NODE_ENV=${NODE_ENV}
+ENV NODE_OPTIONS=--max-old-space-size=8192
+ENV OPENPULSE_GIT_SHA=${OPENPULSE_GIT_SHA}
+ENV OPENPULSE_BUILD_AT=${OPENPULSE_BUILD_AT}
+
+# Répertoire de travail
+WORKDIR /app
+
+# Copier les fichiers de dépendances
+COPY package.json package-lock.json* ./
+
+# Installer les dépendances
+RUN npm ci --include=dev
+
+# Copier le code source
+COPY . .
+
+# Supprimer les fichiers inutiles pour le build frontend
+RUN rm -rf server supabase docs
+
+# Variables d'environnement pour le build
+ENV VITE_API_URL=/api
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_PUBLISHABLE_KEY
+ENV VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+ENV VITE_SUPABASE_PUBLISHABLE_KEY=${VITE_SUPABASE_PUBLISHABLE_KEY}
+
+# Build de production
+RUN npm run build
+
+# ============================================
+# Stage 2: Production avec Nginx
+# ============================================
+FROM nginx:alpine AS production
+
+# Supprimer la configuration par défaut
+RUN rm -rf /usr/share/nginx/html/*
+
+# Copier le build depuis le stage builder
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copier la configuration Nginx personnalisée
+COPY docker/nginx/frontend.conf /etc/nginx/conf.d/default.conf
+
+# Créer un utilisateur non-root
+RUN addgroup -g 1001 -S nginx-group && \
+    adduser -S -D -H -u 1001 -h /var/cache/nginx -s /sbin/nologin -G nginx-group nginx-user && \
+    chown -R nginx-user:nginx-group /var/cache/nginx && \
+    chown -R nginx-user:nginx-group /var/log/nginx && \
+    chown -R nginx-user:nginx-group /etc/nginx/conf.d && \
+    touch /var/run/nginx.pid && \
+    chown -R nginx-user:nginx-group /var/run/nginx.pid && \
+    chown -R nginx-user:nginx-group /usr/share/nginx/html
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:80/ || exit 1
+
+# Exposer le port
+EXPOSE 80
+
+# Démarrer Nginx
+CMD ["nginx", "-g", "daemon off;"]

@@ -1,0 +1,23 @@
+# RFC 9116 — divulgation responsable des vulnérabilités.
+#
+# GABARIT OpenPulse. L'organisation qui exploite cette instance DOIT remplacer
+# les valeurs ci-dessous avant toute mise en service, puis garder ce fichier
+# et /.well-known/security.txt strictement identiques : ils sont servis à deux
+# URL pour la compatibilité, et deux contenus divergents contredisent le
+# champ Canonical.
+#
+# À remplacer :
+#   - les adresses de contact par des boîtes réellement relevées ;
+#   - Expires par une date à moins d'un an ;
+#   - Canonical par l'URL publique réelle de ce fichier (décommenter) ;
+#   - Policy par la page de politique de signalement (décommenter).
+
+Contact: mailto:securite@exploitant.example.org
+Contact: mailto:dpo@exploitant.example.org
+Expires: 2027-01-01T00:00:00.000Z
+Preferred-Languages: fr, en
+# Canonical: https://exploitant.example.org/.well-known/security.txt
+# Policy: https://exploitant.example.org/politique-de-signalement
+
+# Merci de chiffrer les rapports sensibles (clé publique sur demande).
+# Délai d'accusé de réception visé : 5 jours ouvrés.

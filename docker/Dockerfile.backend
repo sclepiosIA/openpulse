@@ -1,0 +1,84 @@
+# ============================================
+# Dockerfile Backend - OpenPulse API
+# Multi-stage build pour optimisation
+# ============================================
+
+# ============================================
+# Stage 1: Builder
+# ============================================
+FROM node:20-alpine AS builder
+
+# Arguments de build
+ARG NODE_ENV=production
+ENV NODE_ENV=${NODE_ENV}
+
+# Installer les dépendances système pour les builds natifs
+RUN apk add --no-cache python3 make g++
+
+# Répertoire de travail
+WORKDIR /app
+
+# Copier les fichiers de dépendances du serveur
+COPY server/package.json server/package-lock.json* ./
+
+# Installer les dépendances
+RUN npm ci --include=dev
+
+# Copier le code source du serveur
+COPY server/ .
+
+# Build TypeScript
+RUN npm run build
+
+# Supprimer les devDependencies pour la production
+RUN npm prune --production
+
+# ============================================
+# Stage 2: Production
+# ============================================
+FROM node:20-alpine AS production
+
+# Arguments
+ARG NODE_ENV=production
+ENV NODE_ENV=${NODE_ENV}
+
+# Installer uniquement les dépendances runtime nécessaires
+RUN apk add --no-cache \
+    curl \
+    tini
+
+# Créer un utilisateur non-root
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S -u 1001 -G nodejs nodejs
+
+# Répertoire de travail
+WORKDIR /app
+
+# Copier les fichiers de production depuis le builder
+COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nodejs:nodejs /app/package.json ./
+
+# Créer les répertoires nécessaires
+RUN mkdir -p logs uploads && \
+    chown -R nodejs:nodejs logs uploads
+
+# Utiliser l'utilisateur non-root
+USER nodejs
+
+# Variables d'environnement
+ENV PORT=4000
+ENV NODE_ENV=production
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:4000/health || exit 1
+
+# Exposer le port
+EXPOSE 4000
+
+# Utiliser tini comme init
+ENTRYPOINT ["/sbin/tini", "--"]
+
+# Démarrer l'application
+CMD ["node", "dist/index.js"]

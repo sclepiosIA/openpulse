@@ -1,0 +1,77 @@
+name: Barriere de publication
+
+# ---------------------------------------------------------------------------
+# Declenchement MANUEL uniquement, et c'est deliberé.
+#
+# La forge qui heberge ce depot partage un exécuteur unique entre plusieurs
+# applications : un declenchement sur chaque push saturerait la file et
+# bloquerait les autres projets. Le gate automatique de tous les instants est
+# le hook local (.githooks/pre-commit), qui ne coute rien a personne.
+#
+# A l'ouverture du depot, cette barriere doit basculer sur des executeurs
+# heberges et devenir bloquante sur les demandes de fusion : un contributeur
+# externe n'a pas de hook installe, et n'a pas a en installer un.
+# Voir le lot 7 de CHANTIER.md.
+# ---------------------------------------------------------------------------
+
+on:
+  workflow_dispatch:
+    inputs:
+      severite:
+        description: 'Seuil de la barriere'
+        required: false
+        default: 'medium'
+        type: choice
+        options: [medium, high, blocker]
+
+permissions:
+  contents: read
+
+jobs:
+  barriere:
+    name: Secrets, donnees personnelles, marques, infrastructure
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Barriere de publication
+        run: |
+          node tools/openrelease/scan.mjs \
+            --cible . \
+            --severite "${{ inputs.severite || 'medium' }}" \
+            --tout \
+            --rapport rapport-barriere.json
+
+      - name: Publier le rapport
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapport-barriere
+          path: rapport-barriere.json
+          retention-days: 14
+
+      - name: Coherence du manifeste
+        if: always()
+        run: |
+          node -e "
+            const m = require('./tools/openrelease/manifest.json');
+            const cats = new Set(Object.keys(m.categories));
+            const erreurs = [];
+            for (const e of m.exclusions) {
+              if (!cats.has(e.categorie)) erreurs.push('categorie inconnue : ' + e.categorie + ' (' + e.pattern + ')');
+              if (!e.motif) erreurs.push('motif manquant : ' + e.pattern);
+            }
+            for (const [nom, p] of Object.entries(m.profils)) {
+              for (const c of p.exclut_categories) {
+                if (!cats.has(c)) erreurs.push('profil ' + nom + ' : categorie inconnue ' + c);
+              }
+            }
+            if (erreurs.length) { console.error(erreurs.join('\n')); process.exit(1); }
+            console.log('manifeste coherent : ' + m.exclusions.length + ' exclusions, ' + Object.keys(m.profils).length + ' profils');
+          "

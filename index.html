@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
+    <title>%VITE_MARQUE_NOM_PRODUIT%</title>
+    <meta name="description" content="Plateforme de gestion auto-hébergée : relation client, ressources humaines, projets et documents." />
+    <meta name="author" content="%VITE_MARQUE_NOM_PRODUIT%" />
+
+    <!--
+      Politique de sécurité du contenu (défense en profondeur).
+      Strict-Transport-Security, X-Frame-Options et frame-ancestors ne sont PAS
+      honorés dans une balise meta : ils sont posés par l'en-tête HTTP
+      (public/_headers, docker/nginx/frontend.conf). frame-ancestors est donc
+      volontairement absent ici — src/config/csp.contract.test.ts le vérifie.
+
+      Les origines propres à l'installation (base de données, passerelles,
+      services intégrés) ne peuvent pas être écrites en dur dans une
+      distribution auto-hébergeable. Elles sont injectées à la construction par
+      le remplacement des variables d'environnement dans le HTML (Vite) :
+      définir dans .env, même vides, VITE_CSP_IMG_EXTRA, VITE_CSP_CONNECT_EXTRA,
+      VITE_CSP_FRAME_EXTRA et VITE_CSP_MEDIA_EXTRA. Chaque valeur est une liste
+      d'origines explicites séparées par des espaces (jamais « https: » nu, ni
+      joker de sous-domaine : le contrat de CSP refuse ces deux formes).
+    -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: %VITE_CSP_IMG_EXTRA%; font-src 'self' data:; connect-src 'self' %VITE_CSP_CONNECT_EXTRA%; frame-src 'self' %VITE_CSP_FRAME_EXTRA%; media-src 'self' blob: %VITE_CSP_MEDIA_EXTRA%; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta http-equiv="Permissions-Policy" content="geolocation=(self), microphone=(self), camera=(self), payment=(), usb=(), magnetometer=(), gyroscope=()" />
+    <!-- Protection CSRF : les mutations passent par un jeton Bearer. Le jeton ci-dessous est régénéré par CsrfToken.tsx pour exposer la protection au DOM. -->
+    <meta name="csrf-token" content="pending" />
+
+    <!-- Icônes : remplacer les fichiers de public/ par ceux de l'organisation, sans changer les chemins. -->
+    <link rel="icon" href="/favicon.png" type="image/png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png">
+
+    <!-- Manifeste d'application web injecté AVANT tout préchargement par le navigateur. -->
+    <meta name="theme-color" content="#CB5A1A">
+    <script>
+      // Injection dynamique du manifeste selon le chemin courant.
+      // S'exécute avant que le navigateur ne précharge un manifeste.
+      (function() {
+        var path = window.location.pathname;
+        var manifestMap = {
+          '/m/mail': { manifest: '/manifest-mail.json', icon: '/icons/app-mail-192.png', color: '#3280DD' },
+          '/m/pulse': { manifest: '/manifest-pulse.json', icon: '/icons/app-pulse-192.png', color: '#9065D0' },
+          '/m/calendrier': { manifest: '/manifest-calendar.json', icon: '/icons/app-calendar-192.png', color: '#C3518E' },
+          '/m/todos': { manifest: '/manifest-todos.json', icon: '/icons/app-todos-192.png', color: '#31983D' },
+          '/m/jarvis': { manifest: '/manifest-jarvis.json', icon: '/icons/app-jarvis-192.png', color: '#0099AD' }
+        };
+
+        // Recherche de l'application correspondante (suffixe /install inclus).
+        var config = null;
+        for (var key in manifestMap) {
+          if (path.indexOf(key) === 0) {
+            config = manifestMap[key];
+            break;
+          }
+        }
+
+        // Manifeste
+        var manifestHref = config ? config.manifest : '/manifest.webmanifest';
+        document.write('<link rel="manifest" href="' + manifestHref + '">');
+
+        // Couleur de thème
+        if (config && config.color) {
+          var themeTag = document.querySelector('meta[name="theme-color"]');
+          if (themeTag) themeTag.content = config.color;
+        }
+
+        // Icône Apple
+        if (config && config.icon) {
+          var appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
+          if (appleIcon) appleIcon.href = config.icon;
+        }
+      })();
+    </script>
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon.png">
+
+    <!--
+      Aucune préconnexion à un domaine tiers n'est livrée : une instance
+      auto-hébergée ne doit pas ouvrir de connexion vers l'infrastructure d'un
+      autre. Les polices sont servies par l'instance elle-même ou par la pile
+      système (voir la famille de secours dans le style critique ci-dessous).
+      Pour préconnecter l'origine de l'API de l'installation, ajouter ici un
+      <link rel="preconnect"> pointant la valeur de VITE_SUPABASE_URL.
+    -->
+
+    <!-- Style critique en ligne pour un premier rendu rapide -->
+    <style>
+      /* Styles critiques du premier rendu — réduit le blocage du rendu */
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body {
+        font-family: 'IBM Plex Sans', system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      body { min-height: 100vh; background: #FAF6F3; color: #201916; }
+      #root { min-height: 100vh; display: flex; flex-direction: column; }
+      /* Squelette minimal pour le premier affichage */
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      /* Styles critiques additionnels du chargeur initial */
+      #initial-loader { display: flex; align-items: center; justify-content: center; min-height: 100vh; flex-direction: column; gap: 16px; }
+    </style>
+
+    <!-- Différer le CSS non critique pour réduire le blocage du rendu -->
+    <script>
+      // Rend asynchrone le CSS bloquant après le premier rendu.
+      // S'exécute après DOMContentLoaded pour ne pas retarder l'affichage initial.
+      if (typeof window !== 'undefined') {
+        window.addEventListener('DOMContentLoaded', function() {
+          var links = document.querySelectorAll('link[rel="stylesheet"]');
+          links.forEach(function(link) {
+            var href = link.href || '';
+            // Ne différer que le CSS propre à certains fragments (pas le CSS de base)
+            if (href.includes('Contrats') || href.includes('Alertes')) {
+              link.media = 'print';
+              link.onload = function() { this.media = 'all'; };
+            }
+          });
+        });
+      }
+    </script>
+
+    <meta property="og:title" content="%VITE_MARQUE_NOM_PRODUIT%" />
+    <meta property="og:description" content="Plateforme de gestion auto-hébergée : relation client, ressources humaines, projets et documents." />
+    <meta property="og:type" content="website" />
+    <!-- Aperçu social : déposer une image 1200x630 dans public/og/ et pointer son chemin ici. -->
+    <meta property="og:image" content="/placeholder.svg" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="/placeholder.svg" />
+
+    <!-- Garde d'amorçage : auto-réparation en cas d'erreur de fragment ou de minification -->
+    <script>
+      (function () {
+        try {
+          const url = new URL(window.location.href);
+
+          // IMPORTANT : si le paramètre no-sw ou _r est déjà présent, ne jamais rediriger.
+          // Cela évite les boucles de redirection.
+          const alreadyRecovered = url.searchParams.has("no-sw") || url.searchParams.has("_r");
+          if (alreadyRecovered) {
+            window.__NO_SW__ = true;
+            // Nettoyage cosmétique des paramètres, sans redirection
+            if (window.history && window.history.replaceState) {
+              url.searchParams.delete("no-sw");
+              url.searchParams.delete("_r");
+              window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+            }
+            return; // Arrêt immédiat, pas d'écouteur de récupération
+          }
+
+          // Détection d'un cadre tiers pour éviter les boucles de récupération
+          const isThirdPartyIframe = (function () {
+            try {
+              const inIframe = window.self !== window.top;
+              const ref = document.referrer || "";
+              return (
+                inIframe &&
+                ref &&
+                !ref.startsWith(window.location.origin)
+              );
+            } catch (e) {
+              return true;
+            }
+          })();
+
+          // Dans un cadre tiers, ne pas installer les écouteurs
+          if (isThirdPartyIframe) return;
+
+          function safeGet(key) {
+            try {
+              return localStorage.getItem(key);
+            } catch (e) {
+              return null;
+            }
+          }
+
+          function safeSet(key, value) {
+            try {
+              localStorage.setItem(key, value);
+            } catch (e) {}
+          }
+
+          // Détection d'une session d'authentification active SANS coder en dur
+          // la référence du projet : la clé de stockage dépend de l'instance,
+          // on balaie donc les clés au motif sb-<référence>-auth-token.
+          function hasActiveAuthSession() {
+            try {
+              for (var i = 0; i < localStorage.length; i++) {
+                var key = localStorage.key(i);
+                if (key && /^sb-.+-auth-token$/.test(key) && localStorage.getItem(key)) {
+                  return true;
+                }
+              }
+            } catch (e) {}
+            return false;
+          }
+
+          // Une récupération a-t-elle déjà eu lieu récemment ? (30 s de garde)
+          const lastRecovery = parseInt(safeGet("lastRecoveryTime") || "0", 10);
+          const now = Date.now();
+          if (now - lastRecovery < 30000) {
+            return; // Garde active, pas de récupération
+          }
+
+          function shouldRecover(err, src) {
+            const msg = (err && err.message) || "";
+            // Ne jamais récupérer sur une erreur de manifeste
+            if (msg.includes("manifest") || (src && src.includes("manifest")))
+              return false;
+
+            // Strict : uniquement les échecs réels de chargement de fragment,
+            // reconnaissables à l'URL d'actif.
+            var isChunkError = /ChunkLoadError/.test(msg) ||
+              (/Loading chunk [\w.-]+ failed/.test(msg) && /\/assets\//.test(msg)) ||
+              (/Failed to fetch dynamically imported module/.test(msg) && /\/assets\//.test(msg));
+
+            return isChunkError;
+          }
+
+          let recovering = false;
+          async function hardRecover() {
+            if (recovering) return;
+
+            // GARDE : ne jamais recharger automatiquement pendant une saisie.
+            var isDirty = safeGet("email-compose-dirty") === "1";
+            var editingActive = safeGet("app-editing-active") === "1";
+            var lastInput = parseInt(safeGet("app-last-input-at") || "0", 10);
+            var recentInput = (Date.now() - lastInput) < 120000; // 2 min
+            var assistantActive = safeGet("jarvis-task-active") === "1";
+            if (isDirty || (editingActive && recentInput) || assistantActive) {
+              console.warn("[Recovery] Bloqué — saisie ou tâche d'assistant en cours. Rechargement ignoré.");
+              return;
+            }
+
+            // Anti-boucle : 2 récupérations maximum par 60 secondes
+            var MAX_ATTEMPTS = 2;
+            var WINDOW_MS = 60000;
+            var now = Date.now();
+            var attemptsRaw = safeGet("recoveryAttempts");
+            var attempts = [];
+            try { attempts = attemptsRaw ? JSON.parse(attemptsRaw) : []; } catch(e) { attempts = []; }
+            attempts = attempts.filter(function(t) { return now - t < WINDOW_MS; });
+            if (attempts.length >= MAX_ATTEMPTS) {
+              console.warn("[Recovery] Nombre maximal de tentatives atteint (" + MAX_ATTEMPTS + " en 60 s), arrêt.");
+              return;
+            }
+            attempts.push(now);
+            safeSet("recoveryAttempts", JSON.stringify(attempts));
+
+            recovering = true;
+
+            try {
+              // PROTECTION : ne pas détruire les caches si une session d'authentification est active
+              if (hasActiveAuthSession()) {
+                console.warn("[Recovery] Purge des caches ignorée — session d'authentification active");
+                recovering = false;
+                return; // Annuler la récupération pour préserver la session
+              }
+
+              safeSet("lastRecoveryTime", String(Date.now()));
+              if ("caches" in window) {
+                const names = await caches.keys();
+                await Promise.all(names.map((n) => caches.delete(n)));
+              }
+              if (navigator.serviceWorker) {
+                const regs = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(regs.map((r) => r.unregister()));
+              }
+            } catch (e) {
+              console.warn("Erreur de nettoyage lors de la récupération", e);
+            }
+            const u = new URL(window.location.href);
+            u.searchParams.set("no-sw", "1");
+            u.searchParams.set("_r", String(Date.now()));
+            window.location.replace(u.toString());
+          }
+
+          window.addEventListener(
+            "error",
+            (e) => {
+              if (shouldRecover(e.error, e.filename || "")) {
+                e.preventDefault && e.preventDefault();
+                hardRecover();
+              }
+            },
+            { capture: true }
+          );
+
+          window.addEventListener("unhandledrejection", (e) => {
+            const reason = e && (e.reason || {});
+            const msg = reason && (reason.message || String(reason));
+            if (shouldRecover({ message: msg }, "")) {
+              e.preventDefault && e.preventDefault();
+              hardRecover();
+            }
+          });
+        } catch (e) {
+          console.warn("Échec de la garde d'amorçage", e);
+        }
+      })();
+    </script>
+  </head>
+
+  <body id="openpulse-app">
+    <div id="root">
+      <!-- Indicateur de chargement minimal -->
+      <div id="initial-loader" style="display: flex; align-items: center; justify-content: center; min-height: 100vh; flex-direction: column; gap: 16px;">
+        <svg width="40" height="40" viewBox="0 0 24 24" style="animation: spin 1s linear infinite;">
+          <circle cx="12" cy="12" r="10" stroke="#353a46" stroke-width="2" fill="none" stroke-dasharray="31.4" stroke-dashoffset="10"/>
+        </svg>
+        <div style="font-size: 14px; color: #666;">Chargement...</div>
+      </div>
+    </div>
+
+    <script>
+      // Filet de sécurité : si React n'est pas monté au bout de 20 secondes
+      setTimeout(function() {
+        var loader = document.getElementById('initial-loader');
+        if (loader && document.getElementById('root').contains(loader)) {
+          loader.innerHTML = '<div style="text-align:center;padding:20px;">' +
+            '<p style="color:#666;margin-bottom:16px;">Chargement lent détecté</p>' +
+            '<button onclick="location.reload()" style="padding:8px 16px;background:#353a46;color:white;border:none;border-radius:4px;cursor:pointer;">Actualiser</button>' +
+            '</div>';
+        }
+      }, 20000);
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

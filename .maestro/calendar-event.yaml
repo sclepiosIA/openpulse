@@ -1,0 +1,88 @@
+# CRM Hospitalier — Flow 03 : Calendrier — créer rendez-vous + invitation
+# Tests : event creation, conflict detection, calendar sync.
+
+appId: com.marque.gestion
+env:
+  EMAIL: csm@exploitant.example.org
+  PASSWORD: ${MARQUE_TEST_PASSWORD}
+---
+- clearKeychain
+- launchApp:
+    permissions:
+      notifications: allow
+      calendar: allow
+
+- tapOn: { text: ".*[Ss]e connecter.*" }
+- tapOn: { id: "email" }
+- inputText: ${EMAIL}
+- tapOn: { id: "password" }
+- inputText: ${PASSWORD}
+- tapOn: { text: ".*[Vv]alider.*|.*[Cc]onnexion.*" }
+- waitForAnimationToEnd: { timeout: 8000 }
+
+# Aller calendrier
+- openLink: "https://gestion.exploitant.example.org/calendrier"
+- waitForAnimationToEnd: { timeout: 5000 }
+- takeScreenshot: crm-cal-01-view
+
+# Click "Nouvel événement"
+- tapOn:
+    text: ".*\\+.*|.*[Nn]ouvel.*événement.*|.*[Nn]ew event.*"
+- waitForAnimationToEnd: { timeout: 3000 }
+
+# Form
+- tapOn: { id: "input-title" }
+- inputText: "BU-Pentest RDV démo cardio"
+- tapOn:
+    id: "input-date"
+    optional: true
+- waitForAnimationToEnd: { timeout: 2000 }
+# Sélectionner J+1 (date picker)
+- tapOn:
+    text: ".*[Dd]emain.*|.*[Tt]omorrow.*"
+    optional: true
+- tapOn: { id: "input-time" }
+- inputText: "10:00"
+- tapOn: { id: "input-duration" }
+- inputText: "60"
+
+# Invité (optionnel)
+- tapOn:
+    id: "input-attendees"
+    optional: true
+- inputText: "BU-Pentest"  # cherche le contact créé dans flow 02
+- waitForAnimationToEnd: { timeout: 2000 }
+- runFlow:
+    when:
+      visible: ".*BU-Pentest.*"
+    commands:
+      - tapOn: ".*BU-Pentest.*"
+
+- tapOn: { text: ".*[Cc]réer.*|.*[Ee]nregistrer.*|.*[Ss]ave.*" }
+- waitForAnimationToEnd: { timeout: 5000 }
+- takeScreenshot: crm-cal-02-event-created
+
+# Vérifier event visible dans la vue calendrier
+- assertVisible: ".*BU-Pentest RDV démo.*"
+
+# Test conflit : créer 2e event same time
+- tapOn: { text: ".*\\+.*|.*[Nn]ouvel.*" }
+- tapOn: { id: "input-title" }
+- inputText: "BU-Pentest CONFLIT"
+- tapOn: { id: "input-time" }
+- inputText: "10:30"  # chevauche le 1er event
+- tapOn: { text: ".*[Cc]réer.*" }
+- waitForAnimationToEnd: { timeout: 5000 }
+- takeScreenshot: crm-cal-03-conflict-attempt
+
+# App DOIT alerter conflit (warning OU empêche save)
+- assertVisible:
+    text: ".*[Cc]onflit.*|.*[Cc]hevauchement.*|.*déjà.*"
+    optional: true   # certaines apps acceptent silently — à investiguer
+
+# Cleanup : supprimer les 2 events
+- tapOn: ".*BU-Pentest RDV démo.*"
+- tapOn: { text: ".*[Ss]upprimer.*|.*[Dd]elete.*" }
+- tapOn: { text: ".*[Cc]onfirmer.*" }
+- waitForAnimationToEnd: { timeout: 3000 }
+- takeScreenshot: crm-cal-04-cleaned

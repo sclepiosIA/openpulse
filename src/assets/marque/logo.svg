@@ -1,0 +1,11 @@
+<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 430 100" width="430" height="100" role="img" aria-label="OpenPulse">
+  <title>OpenPulse — verrouillage horizontal</title>
+  
+  <g fill="#201916">
+    <circle cx="22" cy="22" r="7.5"></circle><circle cx="50" cy="22" r="7.5"></circle><circle cx="78" cy="22" r="7.5"></circle>
+    <circle cx="22" cy="50" r="7.5"></circle><circle cx="78" cy="50" r="7.5"></circle>
+    <circle cx="22" cy="78" r="7.5"></circle><circle cx="50" cy="78" r="7.5"></circle><circle cx="78" cy="78" r="7.5"></circle>
+  </g>
+  <circle cx="50" cy="50" r="15" fill="#CB5A1A"></circle>
+  <text x="113.5" y="71.6" font-family="IBM Plex Sans, system-ui, sans-serif" font-size="62" letter-spacing="-1.2" fill="#201916"><tspan font-weight="300">Open</tspan><tspan font-weight="600">Pulse</tspan></text>
+</svg>

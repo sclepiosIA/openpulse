@@ -1,0 +1,10 @@
+{
+  "_comment": "Baseline qualité des tests, mise à jour automatiquement par la CI (mutation-testing.yml). Ne pas éditer à la main les champs lastScore/lastRunAt.",
+  "mutationTesting": {
+    "lastScore": null,
+    "lastRunAt": null,
+    "scope": "src/lib/**",
+    "breakThreshold": 50,
+    "note": "Initialisé le 2026-06-02. Score publié automatiquement par CI mutation-testing.yml."
+  }
+}

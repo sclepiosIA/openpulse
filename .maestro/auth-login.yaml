@@ -1,0 +1,63 @@
+# CRM Hospitalier — Flow 01 : Login mobile + dashboard role-aware
+# Tests : login admin vs csm, vérif menu adapté au rôle.
+
+appId: com.marque.gestion
+env:
+  EMAIL: admin@exploitant.example.org
+  PASSWORD: ${MARQUE_TEST_PASSWORD}
+---
+- clearKeychain
+- clearState
+- launchApp:
+    permissions:
+      notifications: unset
+      camera: allow
+      photos: allow
+
+# Splash
+- takeScreenshot: crm-01-splash
+
+# Login
+- tapOn: { text: ".*[Ss]e connecter.*|.*[Cc]onnexion.*|.*[Ll]ogin.*" }
+- waitForAnimationToEnd: { timeout: 3000 }
+- tapOn: { id: "email" }
+- inputText: ${EMAIL}
+- tapOn: { id: "password" }
+- inputText: ${PASSWORD}
+- tapOn: { text: ".*[Vv]alider.*|.*[Cc]onnexion.*|.*[Ll]ogin.*" }
+- waitForAnimationToEnd: { timeout: 10000 }
+- takeScreenshot: crm-02-post-login
+
+# Vérifier dashboard admin (menu doit avoir : Contacts, Établissements, RH, Pulse, Admin)
+- assertVisible: ".*[Cc]ontacts.*"
+- assertVisible: ".*[Éé]tablissements.*"
+- assertVisible: ".*[Cc]alendrier.*|.*[Pp]lanning.*"
+- takeScreenshot: crm-03-admin-menu
+
+# Test : logout
+- tapOn:
+    text: ".*[Aa]vatar.*|.*[Pp]rofil.*|.*[Mm]on compte.*"
+    optional: true
+- tapOn:
+    id: "user-menu"
+    optional: true
+- tapOn:
+    text: ".*[Dd]éconnexion.*|.*[Ll]ogout.*"
+- waitForAnimationToEnd: { timeout: 5000 }
+- assertVisible: ".*[Ss]e connecter.*|.*[Ll]ogin.*"
+- takeScreenshot: crm-04-post-logout
+
+# === Test 2 : login en tant que CSM (rôle limité) ===
+- tapOn: { text: ".*[Ss]e connecter.*|.*[Ll]ogin.*" }
+- tapOn: { id: "email" }
+- inputText: "csm@exploitant.example.org"
+- tapOn: { id: "password" }
+- inputText: ${PASSWORD}
+- tapOn: { text: ".*[Vv]alider.*|.*[Cc]onnexion.*" }
+- waitForAnimationToEnd: { timeout: 10000 }
+- takeScreenshot: crm-05-csm-dashboard
+
+# CSM doit PAS voir Admin / RH (RBAC)
+- assertNotVisible: ".*[Aa]dmin.*[Pp]anel.*"
+- assertNotVisible: ".*[Pp]aie.*"  # RH absent pour CSM
+- assertVisible: ".*[Cc]ontacts.*"

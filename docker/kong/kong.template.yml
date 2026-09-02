@@ -1,0 +1,260 @@
+# =====================================================================
+# Passerelle OpenPulse — configuration déclarative.
+#
+# Point d'entrée unique de l'instance. Deux consommateurs seulement :
+#   - anon         : la clé publique, portée par le navigateur ;
+#   - service_role : la clé de service, JAMAIS exposée à un navigateur.
+#
+# Les origines autorisées sont explicites : aucune n'est ouverte à tous. La
+# variable OPENPULSE_ORIGINS de l'environnement doit être reportée ici lors du
+# déploiement — un caractère joker sur une instance exposée revient à publier
+# l'API à toute page web du monde.
+# =====================================================================
+# ---------------------------------------------------------------------
+# EN-TETES AUTORISES : pourquoi aucun plugin CORS n'en donne la liste
+#
+# Les plugins ci-dessous ne definissent PAS `headers`. Kong renvoie alors
+# exactement les en-tetes que le navigateur annonce dans sa requete
+# preliminaire (Access-Control-Request-Headers).
+#
+# Une liste enumeree serait fausse par construction. La bibliotheque cliente
+# envoie x-client-info, x-supabase-api-version, x-retry-count, accept-profile,
+# content-profile... et en ajoute a chaque version. Chaque oubli produit le
+# meme symptome : « Failed to fetch », sans que le navigateur nomme l'en-tete
+# fautif ailleurs que dans sa console. Un essai en ligne de commande ne le
+# reproduit pas -- curl n'envoie pas ces en-tetes et ne fait pas de requete
+# preliminaire. Constate ici : deux corrections successives, puis un troisieme
+# en-tete inconnu. C'etait la methode qui etait en defaut, pas la liste.
+#
+# Et une liste ne protegerait rien. Elle ne contraint que les navigateurs, qui
+# la respectent d'eux-memes ; un appelant hors navigateur envoie les en-tetes
+# qu'il veut, liste ou pas. La protection reelle tient en deux reglages
+# presents sur chaque plugin : `origins`, restreint a l'origine de CETTE
+# instance, et `credentials`, qui refuse de servir une session a une autre.
+# ---------------------------------------------------------------------
+
+_format_version: '2.1'
+_transform: true
+
+consumers:
+  - username: anon
+    keyauth_credentials:
+      - key: ${ANON_KEY}
+  - username: service_role
+    keyauth_credentials:
+      - key: ${SERVICE_ROLE_KEY}
+
+acls:
+  - consumer: anon
+    group: anon
+  - consumer: service_role
+    group: admin
+
+services:
+  # --- authentification : ouverte, c'est sa fonction -------------------
+  - name: auth-v1-open
+    url: http://auth:9999/verify
+    routes:
+      - name: auth-v1-open
+        strip_path: true
+        paths:
+          - /auth/v1/verify
+    plugins:
+      - name: cors
+        config:
+          # Sans cette configuration, Kong applique son defaut : toutes les
+          # origines. N'importe quel site pourrait alors appeler l'API depuis
+          # le navigateur d'un utilisateur deja connecte.
+          origins:
+            - ${PUBLIC_URL}
+          credentials: true
+          max_age: 3600
+          methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+          # Pas de liste `headers` : Kong reflete Access-Control-Request-Headers.
+          # Voir la note « en-tetes autorises » en tete de fichier.
+          exposed_headers: [content-range, x-total-count]
+
+  - name: auth-v1-open-callback
+    url: http://auth:9999/callback
+    routes:
+      - name: auth-v1-open-callback
+        strip_path: true
+        paths:
+          - /auth/v1/callback
+    plugins:
+      - name: cors
+        config:
+          # Sans cette configuration, Kong applique son defaut : toutes les
+          # origines. N'importe quel site pourrait alors appeler l'API depuis
+          # le navigateur d'un utilisateur deja connecte.
+          origins:
+            - ${PUBLIC_URL}
+          credentials: true
+          max_age: 3600
+          methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+          # Pas de liste `headers` : Kong reflete Access-Control-Request-Headers.
+          # Voir la note « en-tetes autorises » en tete de fichier.
+          exposed_headers: [content-range, x-total-count]
+
+  - name: auth-v1-open-authorize
+    url: http://auth:9999/authorize
+    routes:
+      - name: auth-v1-open-authorize
+        strip_path: true
+        paths:
+          - /auth/v1/authorize
+    plugins:
+      - name: cors
+        config:
+          # Sans cette configuration, Kong applique son defaut : toutes les
+          # origines. N'importe quel site pourrait alors appeler l'API depuis
+          # le navigateur d'un utilisateur deja connecte.
+          origins:
+            - ${PUBLIC_URL}
+          credentials: true
+          max_age: 3600
+          methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+          # Pas de liste `headers` : Kong reflete Access-Control-Request-Headers.
+          # Voir la note « en-tetes autorises » en tete de fichier.
+          exposed_headers: [content-range, x-total-count]
+
+  # --- authentification : le reste exige une clé ----------------------
+  - name: auth-v1
+    _comment: 'GoTrue : /auth/v1/* -> http://auth:9999/*'
+    url: http://auth:9999/
+    routes:
+      - name: auth-v1-all
+        strip_path: true
+        paths:
+          - /auth/v1/
+    plugins:
+      - name: cors
+        config:
+          # Sans cette configuration, Kong applique son defaut : toutes les
+          # origines. N'importe quel site pourrait alors appeler l'API depuis
+          # le navigateur d'un utilisateur deja connecte.
+          origins:
+            - ${PUBLIC_URL}
+          credentials: true
+          max_age: 3600
+          methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+          # Pas de liste `headers` : Kong reflete Access-Control-Request-Headers.
+          # Voir la note « en-tetes autorises » en tete de fichier.
+          exposed_headers: [content-range, x-total-count]
+      - name: key-auth
+        config:
+          hide_credentials: false
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow:
+            - admin
+            - anon
+
+  # --- API REST dérivée du schéma -------------------------------------
+  - name: rest-v1
+    _comment: 'PostgREST : /rest/v1/* -> http://rest:3000/*'
+    url: http://rest:3000/
+    routes:
+      - name: rest-v1-all
+        strip_path: true
+        paths:
+          - /rest/v1/
+    plugins:
+      - name: cors
+        config:
+          # Sans cette configuration, Kong applique son defaut : toutes les
+          # origines. N'importe quel site pourrait alors appeler l'API depuis
+          # le navigateur d'un utilisateur deja connecte.
+          origins:
+            - ${PUBLIC_URL}
+          credentials: true
+          max_age: 3600
+          methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+          # Pas de liste `headers` : Kong reflete Access-Control-Request-Headers.
+          # Voir la note « en-tetes autorises » en tete de fichier.
+          exposed_headers: [content-range, x-total-count]
+      - name: key-auth
+        config:
+          hide_credentials: true
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow:
+            - admin
+            - anon
+
+  # --- stockage d'objets ----------------------------------------------
+  - name: storage-v1
+    _comment: 'Storage : /storage/v1/* -> http://storage:5000/*'
+    url: http://storage:5000/
+    routes:
+      - name: storage-v1-all
+        strip_path: true
+        paths:
+          - /storage/v1/
+    plugins:
+      - name: cors
+        config:
+          # Sans cette configuration, Kong applique son defaut : toutes les
+          # origines. N'importe quel site pourrait alors appeler l'API depuis
+          # le navigateur d'un utilisateur deja connecte.
+          origins:
+            - ${PUBLIC_URL}
+          credentials: true
+          max_age: 3600
+          methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+          # Pas de liste `headers` : Kong reflete Access-Control-Request-Headers.
+          # Voir la note « en-tetes autorises » en tete de fichier.
+          exposed_headers: [content-range, x-total-count]
+
+  # --- temps réel -------------------------------------------------------
+  # Le client Supabase ouvre une connexion websocket sur /realtime/v1/websocket.
+  # strip_path est FAUX ici, contrairement aux autres routes : le service attend
+  # le chemin complet /socket/websocket, que le client construit lui-même.
+  - name: realtime-v1
+    _comment: 'Realtime : /realtime/v1/* -> ws://realtime:4000/socket/*'
+    url: http://realtime:4000/socket/
+    routes:
+      - name: realtime-v1-all
+        strip_path: true
+        paths:
+          - /realtime/v1/
+    plugins:
+      - name: cors
+        config:
+          # Sans cette configuration, Kong applique son defaut : toutes les
+          # origines. N'importe quel site pourrait alors appeler l'API depuis
+          # le navigateur d'un utilisateur deja connecte.
+          origins:
+            - ${PUBLIC_URL}
+          credentials: true
+          max_age: 3600
+          methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+          # Pas de liste `headers` : Kong reflete Access-Control-Request-Headers.
+          # Voir la note « en-tetes autorises » en tete de fichier.
+          exposed_headers: [content-range, x-total-count]
+
+  # --- fonctions de bord ----------------------------------------------
+  - name: functions-v1
+    _comment: 'Edge runtime : /functions/v1/* -> http://functions:9000/*'
+    url: http://functions:9000/
+    routes:
+      - name: functions-v1-all
+        strip_path: true
+        paths:
+          - /functions/v1/
+    plugins:
+      - name: cors
+        config:
+          # Sans cette configuration, Kong applique son defaut : toutes les
+          # origines. N'importe quel site pourrait alors appeler l'API depuis
+          # le navigateur d'un utilisateur deja connecte.
+          origins:
+            - ${PUBLIC_URL}
+          credentials: true
+          max_age: 3600
+          methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+          # Pas de liste `headers` : Kong reflete Access-Control-Request-Headers.
+          # Voir la note « en-tetes autorises » en tete de fichier.
+          exposed_headers: [content-range, x-total-count]

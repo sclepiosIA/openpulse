@@ -1,0 +1,138 @@
+# CRM Hospitalier — Flow 02 : Création contact + recherche + édition
+# Sélecteurs tolérants : pas d'IDs hardcodés, regex sur labels visibles.
+
+appId: com.marque.gestion
+env:
+  EMAIL: csm@exploitant.example.org
+  PASSWORD: ${MARQUE_TEST_PASSWORD}
+tags:
+  - crud
+  - contact
+  - regression
+---
+- clearKeychain
+- launchApp:
+    permissions: { all: allow }
+
+# Login best-effort
+- runFlow:
+    when:
+      visible: ".*[Ss]e connecter.*|.*[Ll]ogin.*"
+    commands:
+      - tapOn: ".*[Ss]e connecter.*|.*[Ll]ogin.*"
+- tapOn:
+    text: ".*[Ee]mail.*|.*[Ii]dentifiant.*"
+    optional: true
+- inputText: ${EMAIL}
+- tapOn:
+    text: ".*[Pp]assword.*|.*[Mm]ot de passe.*"
+    optional: true
+- inputText: ${PASSWORD}
+- tapOn:
+    text: ".*[Vv]alider.*|.*[Cc]onnexion.*"
+    optional: true
+- waitForAnimationToEnd: { timeout: 10000 }
+- takeScreenshot: crm-02-00-logged-in
+
+# Aller Contacts
+- openLink: "https://gestion.exploitant.example.org/contacts"
+- waitForAnimationToEnd: { timeout: 6000 }
+- takeScreenshot: crm-02-01-list
+
+# === Click "Nouveau contact" (multi-pattern) ===
+- runFlow:
+    when:
+      visible: ".*\\+.*|.*[Nn]ouveau.*|.*[Aa]jouter.*|.*[Nn]ew.*"
+    commands:
+      - tapOn:
+          text: ".*\\+.*|.*[Nn]ouveau.*contact.*|.*[Aa]jouter.*contact.*|.*[Nn]ew contact.*"
+          optional: true
+      # Fallback : si le bouton est juste "+", on tape le 1er
+      - tapOn:
+          text: "^\\+$"
+          optional: true
+- waitForAnimationToEnd: { timeout: 4000 }
+- takeScreenshot: crm-02-02-form
+
+# === Saisie du formulaire (sélection par label visible) ===
+# Pattern Maestro : tap label → puis next inputText va dans le champ adjacent
+- tapOn:
+    text: ".*[Pp]rénom.*|.*[Ff]irst.*name.*"
+    optional: true
+- inputText: "BU-Pentest-Marie"
+
+- tapOn:
+    text: "^[Nn]om$|.*[Ll]ast.*name.*|.*[Nn]om de famille.*"
+    optional: true
+- inputText: "Test-Contact"
+
+- tapOn:
+    text: ".*[Ee]mail.*"
+    optional: true
+- inputText: "marie.test.bu@example.invalid"
+
+- tapOn:
+    text: ".*[Tt]éléphone.*|.*[Pp]hone.*|.*[Mm]obile.*"
+    optional: true
+- inputText: "0612345678"
+
+# === Save ===
+- tapOn:
+    text: ".*[Ee]nregistrer.*|.*[Ss]ave.*|.*[Cc]réer.*|.*[Vv]alider.*"
+- waitForAnimationToEnd: { timeout: 8000 }
+- takeScreenshot: crm-02-03-saved
+
+# Vérifier création (toast OU redirection vers fiche)
+- assertVisible:
+    text: ".*BU-Pentest-Marie.*|.*[Cc]ontact créé.*|.*[Aa]jouté.*|.*[Ss]ucc.*"
+    timeout: 5000
+
+# === Recherche du contact créé ===
+- back
+- waitForAnimationToEnd: { timeout: 3000 }
+- tapOn:
+    text: ".*[Rr]echerche.*|.*[Ss]earch.*|.*🔍.*"
+    optional: true
+- inputText: "BU-Pentest"
+- waitForAnimationToEnd: { timeout: 3000 }
+- takeScreenshot: crm-02-04-search
+- assertVisible: ".*BU-Pentest-Marie.*"
+
+# === Ouvrir + éditer ===
+- tapOn: ".*BU-Pentest-Marie.*"
+- waitForAnimationToEnd: { timeout: 4000 }
+- takeScreenshot: crm-02-05-contact-view
+
+- tapOn:
+    text: ".*[Éé]diter.*|.*[Ee]dit.*|.*[Mm]odifier.*|.*✏.*"
+    optional: true
+- waitForAnimationToEnd: { timeout: 3000 }
+
+# Edit prénom
+- tapOn:
+    text: ".*[Pp]rénom.*|.*[Ff]irst.*name.*"
+    optional: true
+- eraseText: 50
+- inputText: "BU-Pentest-Marie-EDIT"
+- tapOn:
+    text: ".*[Ee]nregistrer.*|.*[Ss]ave.*|.*[Vv]alider.*"
+- waitForAnimationToEnd: { timeout: 5000 }
+- takeScreenshot: crm-02-06-edited
+- assertVisible:
+    text: ".*BU-Pentest-Marie-EDIT.*|.*[Mm]odifié.*|.*[Mm]is à jour.*"
+
+# === Cleanup : supprimer ===
+- runFlow:
+    when:
+      visible: ".*[Ss]upprimer.*|.*[Dd]elete.*|.*🗑.*"
+    commands:
+      - tapOn:
+          text: ".*[Ss]upprimer.*|.*[Dd]elete.*"
+      - runFlow:
+          when:
+            visible: ".*[Cc]onfirmer.*|.*[Cc]onfirm.*|.*[Oo]ui.*"
+          commands:
+            - tapOn: ".*[Cc]onfirmer.*|.*[Cc]onfirm.*|.*[Oo]ui.*"
+      - waitForAnimationToEnd: { timeout: 4000 }
+      - assertNotVisible: ".*BU-Pentest-Marie-EDIT.*"
+      - takeScreenshot: crm-02-07-deleted

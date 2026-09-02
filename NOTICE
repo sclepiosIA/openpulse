@@ -1,0 +1,84 @@
+NOTICE
+======
+
+Provenance
+----------
+
+Cette distribution est produite en aval d'un depot prive, par un pipeline
+reproductible (voir tools/openrelease/). Elle n'est pas une copie du depot
+amont : une partie du contenu en est deliberement absente, parce qu'elle est
+confidentielle, personnelle, ou specifique a l'editeur.
+
+Le SHA du commit amont extrait figure dans tools/openrelease/manifest.json et
+dans le message de chaque commit de synchronisation.
+
+
+Marques
+-------
+
+La licence MIT porte sur le code et la documentation. Elle ne concede AUCUN
+droit sur les marques, noms commerciaux, logos, identites visuelles et noms de
+produit du titulaire du droit d'auteur.
+
+En particulier :
+
+- vous pouvez utiliser, modifier et redistribuer ce logiciel librement ;
+- vous ne pouvez PAS le presenter comme un produit de l'editeur, ni utiliser
+  ses marques ou son identite visuelle pour promouvoir votre instance ou un
+  produit derive ;
+- si vous distribuez une version modifiee, donnez-lui votre propre nom.
+
+Les elements d'identite visuelle presents dans le depot (logos, favicons,
+images de marque) sont des emplacements a remplacer par les votres. Ils sont
+fournis pour que l'interface soit fonctionnelle, pas pour etre reutilises.
+
+
+Ce que ce logiciel n'est pas
+----------------------------
+
+- Ce n'est pas un dispositif medical, et il n'est pas concu pour le devenir.
+- Il n'est pas destine a heberger ou traiter des donnees de sante a caractere
+  personnel. Un tel usage releverait d'obligations reglementaires
+  (hebergement de donnees de sante, marquage, certification) qui ne sont pas
+  couvertes par cette distribution.
+- Il n'est fourni avec aucune garantie de conformite reglementaire. La
+  conformite d'une instance releve de l'organisation qui l'exploite.
+
+
+Dependances tierces
+-------------------
+
+L'arbre de production compte 1 151 paquets, dont 1 135 sous licence permissive
+(MIT, ISC, Apache-2.0, BSD, 0BSD, BlueOak, Python-2.0). Aucun paquet a
+reciprocite forte, aucun paquet sans licence declaree. L'audit se rejoue par :
+
+    node tools/openrelease/auditer-licences.mjs .
+
+Reciprocite faible (Mozilla Public License 2.0). Ces paquets sont embarques
+tels quels ; la MPL n'impose sa reciprocite qu'aux fichiers qu'elle couvre, non
+a l'oeuvre qui les utilise :
+
+  - @capgo/capacitor-updater
+  - ico-endec
+  - lightningcss, et ses variantes de plateforme
+    (android-arm64, darwin-arm64, darwin-x64, freebsd-x64,
+     linux-arm-gnueabihf, linux-arm64-gnu, linux-arm64-musl,
+     linux-x64-gnu, linux-x64-musl, win32-arm64-msvc, win32-x64-msvc)
+
+Trois arbitrages restaient ouverts ; ils sont tranches, et les dependances
+concernees ont ete retirees de l'arbre de production :
+
+  - hyperformula (GPL-3.0-only) : le moteur de formules du tableur est
+    desormais ecrit dans le depot, sous la licence du depot
+    (src/components/documents/power/formulaEngine.ts).
+  - react-leaflet et @react-leaflet/core (Hippocratic-2.1, non approuvee par
+    l'OSI) : l'affichage cartographique passe par maplibre-gl (BSD-3), deja
+    present dans l'arbre
+    (src/components/calendrier/LocationMapInner.tsx).
+  - @qonto/embed-sdk (aucune licence declaree, donc tous droits reserves) :
+    retire de package.json.
+
+La demarche, les issues examinees et le motif de chaque choix sont conserves
+dans docs/LICENCES_DEPENDANCES.md. Le controle
+tools/openrelease/verifier-notice-licences.mjs compare les chiffres ci-dessus a
+la sortie de l'auditeur : ce paragraphe ne peut plus deriver en silence.

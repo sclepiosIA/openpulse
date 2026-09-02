@@ -1,0 +1,19 @@
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: *
+Allow: /
+Allow: /.well-known/security.txt
+Allow: /security.txt
+
+# Politique de signalement vulnérabilités (RFC 9116) — voir /.well-known/security.txt
+Sitemap: https://gestion.exploitant.example.org/sitemap.xml

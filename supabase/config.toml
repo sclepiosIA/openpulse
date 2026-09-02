@@ -1,0 +1,940 @@
+project_id = "your-project-ref"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://localhost:54321"
+
+[inbucket]
+enabled = true
+port = 54324
+smtp_port = 54325
+pop3_port = 54326
+
+[storage]
+enabled = true
+port = 54327
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+port = 54329
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://localhost:3000"]
+jwt_expiry = 3600
+# OpenPulse : inscriptions fermees par defaut. Ouvrir est une decision
+# d'exploitant, documentee dans docs/SECURITE_DEFAUTS.md.
+enable_signup = false
+
+[edge_runtime]
+enabled = true
+port = 54328
+
+# Companion autologin - public page, no JWT needed
+[functions.companion-autologin]
+verify_jwt = false
+
+# Public booking proxy - external Site Web reads/creates bookings without exposing user_id
+[functions.public-booking-proxy]
+verify_jwt = false
+
+# 2FA generation function configuration
+[functions.generate-2fa-secret]
+verify_jwt = true
+
+# Admin user creation function - requires admin with 2FA
+[functions.admin-create-user]
+verify_jwt = true
+
+# Admin password reset function - requires admin with 2FA
+[functions.admin-reset-user-password]
+verify_jwt = true
+
+# Cron job configuration
+[functions.daily-task-reminder]
+verify_jwt = true
+
+# Email sending function configuration  
+[functions.send-test-email]
+verify_jwt = true
+
+# QR code emargement confirmation email
+
+# IP validation function configuration - requires secret for security
+[functions.ip-validator]
+verify_jwt = false
+
+# Calendar feed function - public access (authenticated via token in URL)
+[functions.calendar-feed]
+verify_jwt = false
+
+# Email integration functions
+[functions.connect-email-account]
+verify_jwt = true
+
+# Email sync - requires JWT authentication from frontend
+[functions.sync-emails]
+verify_jwt = true
+
+[functions.process-email-with-ai]
+verify_jwt = true
+
+[functions.auto-create-etablissement]
+verify_jwt = true
+
+[functions.update-tasks-from-email]
+verify_jwt = true
+
+[functions.create-tasks-from-email]
+verify_jwt = true
+
+[functions.generate-ai-suggestions]
+verify_jwt = true
+
+[functions.chat-data-query]
+verify_jwt = true
+
+[functions.notify-pending-ai-suggestions]
+verify_jwt = true
+
+[functions.auto-match-emails]
+verify_jwt = true
+
+[functions.create-in-app-notification]
+verify_jwt = true
+
+[functions.notify-event-update]
+verify_jwt = true
+
+# SECURITY: User-triggered functions - require authentication
+[functions.send-email-reply]
+verify_jwt = true
+
+[functions.ai-search-overview]
+verify_jwt = true
+
+[functions.help-me-write-email]
+verify_jwt = true
+
+[functions.reformulate-email]
+verify_jwt = true
+
+[functions.translate-email]
+verify_jwt = true
+
+# Detect language and translate email to French
+[functions.detect-and-translate-email]
+verify_jwt = true
+
+[functions.correct-spelling-email]
+verify_jwt = true
+
+[functions.suggest-email-content]
+verify_jwt = true
+
+[functions.download-attachment]
+verify_jwt = true
+
+[functions.enrich-contact-from-email]
+verify_jwt = true
+
+[functions.forward-email]
+verify_jwt = true
+
+[functions.apply-ai-suggestion]
+verify_jwt = true
+
+[functions.quick-match-by-domain]
+verify_jwt = true
+
+[functions.resync-empty-emails]
+verify_jwt = true
+
+[functions.analyze-rapports-insights]
+verify_jwt = true
+
+# Medical-economic study analysis with GPT-5
+[functions.analyze-medical-economic-study]
+verify_jwt = true
+
+# Parse bulletin de salaire with GPT-5 (requires authentication)
+[functions.parse-bulletin-salaire]
+verify_jwt = true
+
+# Parse bulletin de salaire temp (bulk upload) - requires authentication
+[functions.parse-bulletin-temp]
+verify_jwt = true
+
+# Reanalyze all bulletins to extract net_paye
+[functions.reanalyze-all-bulletins]
+verify_jwt = true
+
+# Simple emargement registration - public access (no auth required)
+
+# Email de remerciement après émargement - public access (appelé par register-emargement-simple)
+
+# Simulator data analysis with GPT-5 (postMessage communication)
+[functions.analyze-simulator-data]
+verify_jwt = true
+
+[functions.daily-ai-insights-analysis]
+verify_jwt = true
+
+[functions.auto-create-contacts-from-email]
+verify_jwt = true
+
+# Public satisfaction solution survey submission
+[functions.submit-satisfaction-solution]
+verify_jwt = false
+
+[functions.auto-create-contacts-from-partenaire]
+verify_jwt = true
+
+[functions.backfill-contacts-from-ai-data]
+verify_jwt = true
+
+# JARVIS 3.0 Brain - GPT-5 Tool Calling Engine
+[functions.jarvis-brain]
+verify_jwt = true
+
+# JARVIS 3.0 Brain - Streaming Edition (SSE) - FIX: Uniformiser JWT avec jarvis-brain
+[functions.jarvis-brain-stream]
+verify_jwt = true
+
+# Unified cleanup function for all suggestions (replaces 4 separate functions)
+[functions.cleanup-all-suggestions]
+verify_jwt = true
+cron = ["0 3 * * *"]
+
+# Hourly email sync and AI analysis
+[functions.hourly-email-sync-and-analysis]
+verify_jwt = true
+
+[functions.auto-link-attachment-to-task]
+verify_jwt = true
+
+[functions.setup-team-members]
+verify_jwt = true
+
+[functions.complete-team-email-mappings]
+verify_jwt = true
+
+# Daily task reminder cron job - runs every day at 8:00 AM
+[[edge_runtime.cron_jobs]]
+name = "daily-task-reminder"
+schedule = "0 8 * * *"
+function_name = "daily-task-reminder"
+
+# Hourly email sync and AI analysis cron job - runs every hour
+[[edge_runtime.cron_jobs]]
+name = "hourly-email-sync-and-analysis"
+schedule = "0 * * * *"
+function_name = "hourly-email-sync-and-analysis"
+
+# Daily AI insights analysis - runs at 7:00 and 8:00 AM UTC (covers Paris 9:00 AM year-round)
+[[edge_runtime.cron_jobs]]
+name = "daily-ai-insights-analysis"
+schedule = "0 7,8 * * *"
+function_name = "daily-ai-insights-analysis"
+
+# =====================================================
+# JARVIS CRON JOBS - Proactive Scan & Background Worker
+# =====================================================
+
+# JARVIS Proactive Scan - Runs every 5 minutes to detect alerts
+[[edge_runtime.cron_jobs]]
+name = "jarvis-proactive-scan"
+schedule = "*/5 * * * *"
+function_name = "jarvis-proactive-scan"
+
+# JARVIS Background Worker Sweep - Process pending jobs every 2 minutes
+[[edge_runtime.cron_jobs]]
+name = "jarvis-background-worker-sweep"
+schedule = "*/2 * * * *"
+function_name = "jarvis-background-worker"
+
+# JARVIS Autopilot Scheduler - Execute automation rules every 5 minutes
+[functions.jarvis-autopilot-scheduler]
+verify_jwt = true
+
+[[edge_runtime.cron_jobs]]
+name = "jarvis-autopilot-scheduler"
+schedule = "*/5 * * * *"
+function_name = "jarvis-autopilot-scheduler"
+
+# =====================================================
+
+# Qonto integration functions
+[functions.qonto-auth]
+verify_jwt = true
+
+[functions.qonto-sync-transactions]
+verify_jwt = true
+
+[functions.qonto-get-balance]
+verify_jwt = true
+
+[functions.qonto-check-alerts]
+verify_jwt = true
+
+[functions.qonto-webhook-handler]
+verify_jwt = false
+
+# Qonto hourly sync - runs every hour
+[[edge_runtime.cron_jobs]]
+name = "qonto-hourly-sync"
+schedule = "0 * * * *"
+function_name = "qonto-sync-transactions"
+
+# Qonto alerts check - runs every 30 minutes
+[[edge_runtime.cron_jobs]]
+name = "qonto-check-alerts"
+schedule = "*/30 * * * *"
+function_name = "qonto-check-alerts"
+
+# Email thread integrity check - runs daily at 03:00 UTC (Session 9 - Lot A)
+[functions.check-thread-integrity-cron]
+verify_jwt = true
+
+[[edge_runtime.cron_jobs]]
+name = "check-thread-integrity-daily"
+schedule = "0 3 * * *"
+function_name = "check-thread-integrity-cron"
+
+# Generate AI thread titles
+[functions.generate-thread-title]
+verify_jwt = true
+
+# Treasury revenue generation functions
+[functions.generate-future-revenues]
+verify_jwt = true
+
+[functions.generate-recurring-expenses]
+verify_jwt = true
+
+# Generate future revenues - runs daily at 2:00 AM
+[[edge_runtime.cron_jobs]]
+name = "generate-revenues-daily"
+schedule = "0 2 * * *"
+function_name = "generate-future-revenues"
+
+# Generate recurring expenses - runs daily at 3:00 AM
+[[edge_runtime.cron_jobs]]
+name = "generate-expenses-daily"
+schedule = "0 3 * * *"
+function_name = "generate-recurring-expenses"
+
+# Treasury functions
+[functions.tresorerie-generate-revenus-etablissements]
+verify_jwt = true
+
+# Internal contacts cleanup - requires authentication
+[functions.cleanup-internal-contacts]
+verify_jwt = true
+
+# Calendar invitations detection from emails
+[functions.detect-calendar-invitations]
+verify_jwt = true
+
+# Auto-complete formation sessions past their end date - daily at 1:00 AM
+
+# RH to Treasury synchronization
+[functions.sync-rh-tresorerie]
+verify_jwt = true
+
+# Import Nextcloud Deck JSON for R&D projects
+[functions.import-deck-json]
+verify_jwt = true
+
+# R&D AI assist - improve description, generate tasks and criteria
+[functions.rd-ai-assist]
+verify_jwt = true
+
+# Send push notifications
+[functions.send-push-notification]
+verify_jwt = true
+
+# Support ticket creation from emails
+[functions.create-support-ticket]
+verify_jwt = true
+
+# Create video conference links (shared account)
+[functions.create-google-meet-link]
+verify_jwt = true
+
+[functions.create-nextcloud-talk-link]
+verify_jwt = true
+
+# Generate thread summary for calendar events
+[functions.generate-thread-summary]
+verify_jwt = true
+
+# Pulse module functions
+[functions.pulse-notify]
+verify_jwt = true
+
+[functions.pulse-ai-summarize]
+verify_jwt = true
+
+[functions.pulse-ai-chat]
+verify_jwt = true
+
+[functions.pulse-search]
+verify_jwt = true
+
+[functions.pulse-ai-editor]
+verify_jwt = true
+
+# WebRTC signaling for OpenPulse Meet visio
+[functions.webrtc-signaling]
+verify_jwt = true
+
+# Audio transcription with Whisper
+[functions.transcribe-audio]
+verify_jwt = true
+
+# Calendar AI event creation from natural language
+[functions.calendar-ai-create]
+verify_jwt = true
+
+[functions.import-ics-events]
+verify_jwt = true
+
+[functions.sync-calendar-subscription]
+verify_jwt = true
+
+# Smart tasks analysis from content (email/pulse)
+[functions.smart-tasks-from-content]
+verify_jwt = true
+
+# Azure transcription for visio meetings
+[functions.azure-transcribe-audio]
+verify_jwt = true
+
+# Transcription session management
+[functions.visio-transcription-session]
+verify_jwt = true
+
+# Process transcription summary with GPT-5
+[functions.process-transcription-summary]
+verify_jwt = true
+
+# [REMOVED] JARVIS Realtime WebSocket - Deprecated due to WebSocket auth limitations
+
+# Send transcription email with summary
+[functions.send-transcription-email]
+verify_jwt = true
+
+# OnlyOffice document editing integration (legacy)
+[functions.onlyoffice-token]
+verify_jwt = false
+
+[functions.onlyoffice-callback]
+verify_jwt = false
+
+# DocSpace document editing integration
+[functions.docspace-config]
+verify_jwt = true
+
+[functions.docspace-upload]
+verify_jwt = true
+
+[functions.docspace-download]
+verify_jwt = true
+
+# Test email connection diagnostic
+[functions.test-email-connection]
+verify_jwt = true
+
+# Force sync for support email account
+[functions.force-sync-support]
+verify_jwt = true
+
+# Update email account password with IMAP validation
+[functions.update-email-password]
+verify_jwt = true
+
+# RH absence conflict detection with AI
+[functions.check-absence-conflicts]
+verify_jwt = true
+
+# Invoice reminder automation with AI
+[functions.send-invoice-reminders]
+verify_jwt = true
+
+# AI-powered employee training suggestions
+[functions.suggest-employee-training]
+verify_jwt = true
+
+# Smart Qonto reconciliation with AI
+[functions.smart-reconcile-qonto]
+verify_jwt = true
+
+# Flux de trésorerie predictions with AI
+[functions.predict-cashflow]
+verify_jwt = true
+
+# Annual review preparation with AI
+[functions.prepare-annual-review]
+verify_jwt = true
+
+# RH insights analysis with AI
+[functions.analyze-rh-insights]
+verify_jwt = true
+
+# Weekly RH analysis CRON job
+[functions.weekly-rh-analysis]
+verify_jwt = true
+
+# Direction alerts generation with AI
+[functions.generate-direction-alerts]
+verify_jwt = true
+
+# Treasury insights analysis with AI
+[functions.analyze-tresorerie-insights]
+verify_jwt = true
+
+# Daily invoice reminders - runs daily at 9:00 AM
+[[edge_runtime.cron_jobs]]
+name = "daily-invoice-reminders"
+schedule = "0 9 * * *"
+function_name = "send-invoice-reminders"
+
+# Weekly RH analysis - runs every Monday at 8:00 AM
+[[edge_runtime.cron_jobs]]
+name = "weekly-rh-analysis"
+schedule = "0 8 * * 1"
+function_name = "weekly-rh-analysis"
+
+# Weekly Treasury analysis CRON job
+[functions.weekly-treasury-analysis]
+verify_jwt = true
+
+# Weekly Treasury analysis - runs every Monday at 8:30 AM (after RH at 8:00)
+[[edge_runtime.cron_jobs]]
+name = "weekly-treasury-analysis"
+schedule = "30 8 * * 1"
+function_name = "weekly-treasury-analysis"
+
+# Live Chat AI responder - no JWT, called from widget
+[functions.live-chat-ai-respond]
+verify_jwt = false
+
+# Phase 1-4 nouvelles fonctions
+[functions.generate-invoice-pdf]
+verify_jwt = true
+
+[functions.generate-quote-pdf]
+verify_jwt = true
+
+[functions.export-fec]
+verify_jwt = true
+
+[functions.send-booking-confirmation]
+verify_jwt = false
+
+[functions.send-booking-reminder]
+verify_jwt = false
+
+# JARVIS 3.2 - Vision, Proactive Alerts
+# [REMOVED] jarvis-realtime-token - Deprecated due to WebSocket auth limitations
+
+[functions.jarvis-vision]
+verify_jwt = true
+
+[functions.jarvis-proactive-scan]
+verify_jwt = true
+
+# JARVIS 7.0 - Daily Briefing
+[functions.jarvis-daily-briefing]
+verify_jwt = true
+
+[functions.parse-cv-with-ai]
+verify_jwt = true
+
+[functions.recommend-training]
+verify_jwt = true
+
+# Sync invoices to treasury
+[functions.sync-factures-tresorerie]
+verify_jwt = true
+
+[functions.rgpd-export-data]
+verify_jwt = true
+
+# DocuSeal electronic signature functions
+[functions.docuseal-create-signature]
+verify_jwt = true
+
+[functions.docuseal-webhook]
+verify_jwt = false
+
+[functions.api-v1-docs]
+verify_jwt = false
+
+[functions.oauth-authorize]
+verify_jwt = false
+
+[functions.oauth-token]
+verify_jwt = false
+
+# Contract AI assistant
+[functions.contract-ai-assist]
+verify_jwt = true
+
+# Document AI assistant (résumé / reformulation / classification DPO-RSSI / extraction actions)
+[functions.document-ai-assist]
+verify_jwt = true
+
+# Note structuring AI
+[functions.structure-note]
+verify_jwt = true
+
+# Admin 2FA compliance audit - scheduled daily via pg_cron
+[functions.audit-admin-2fa]
+verify_jwt = true
+
+# Get Qonto client invoices (unpaid)
+[functions.qonto-get-client-invoices]
+verify_jwt = true
+
+# JARVIS - Assistant IA Autonome Proactif
+[functions.jarvis-agent]
+verify_jwt = true
+
+[functions.jarvis-execute]
+verify_jwt = true
+
+# [REMOVED] JARVIS Realtime Execute - Deprecated due to WebSocket auth limitations
+
+# Send email via user's SMTP account (used by Jarvis)
+[functions.send-email]
+verify_jwt = false
+
+# JARVIS Background Worker - Async job execution
+[functions.jarvis-background-worker]
+verify_jwt = true
+
+# =====================================================
+# JARVIS 5.0 - Multi-Agent Team System
+# =====================================================
+
+# JARVIS Prime - Multi-Agent Orchestrator
+[functions.jarvis-prime]
+verify_jwt = true
+
+# JARVIS Team Standup - Daily Briefing Generator
+[functions.jarvis-team-standup]
+verify_jwt = true
+
+# JARVIS Predictive Engine - Intelligent Predictions
+[functions.jarvis-predictive-engine]
+verify_jwt = true
+
+# JARVIS Shared Memory - Inter-Agent Context Sharing
+[functions.jarvis-shared-memory]
+verify_jwt = true
+
+# JARVIS Learning Engine - Continuous Learning & Feedback
+[functions.jarvis-learning-engine]
+verify_jwt = true
+
+# JARVIS Workflow Engine - Automated Multi-Step Workflows
+[functions.jarvis-workflow-engine]
+verify_jwt = true
+
+# JARVIS Orchestrator - Advanced Task Orchestration
+[functions.jarvis-orchestrator]
+verify_jwt = true
+
+# =====================================================
+# JARVIS 6.0 - Omniscient & Unified
+# =====================================================
+
+# JARVIS Voice Intent - Voice command intent detection
+[functions.jarvis-voice-intent]
+verify_jwt = true
+
+# JARVIS Auto-Actions - Automatic action execution based on patterns
+[functions.jarvis-auto-actions]
+verify_jwt = true
+
+# JARVIS Agent Metrics - Performance analytics per agent
+[functions.jarvis-agent-metrics]
+verify_jwt = true
+
+# JARVIS Agent Negotiation - Conflict resolution between agents
+[functions.jarvis-agent-negotiation]
+verify_jwt = true
+
+# JARVIS Webhook Receiver - External webhook processing
+[functions.jarvis-webhook-receiver]
+verify_jwt = false
+
+# JARVIS Multi-Channel - Multi-channel messaging (SMS, Slack, Teams, WhatsApp)
+[functions.jarvis-multi-channel]
+verify_jwt = true
+
+# [REMOVED] JARVIS 7.0 - GPT Realtime Audio Proxy (deprecated due to WebSocket auth limitations)
+
+# =====================================================
+# JARVIS 6.0 CRON JOBS
+# =====================================================
+
+# JARVIS Auto-Actions - Execute automatic actions every 10 minutes
+[[edge_runtime.cron_jobs]]
+name = "jarvis-auto-actions"
+schedule = "*/10 * * * *"
+function_name = "jarvis-auto-actions"
+
+# =====================================================
+# JARVIS 10.0 - Enterprise Resilience
+# =====================================================
+
+# JARVIS Health Check - System health monitoring endpoint
+[functions.jarvis-health-check]
+verify_jwt = true
+
+# JARVIS Generate Embedding - Semantic memory vector generation
+[functions.jarvis-generate-embedding]
+verify_jwt = true
+
+# JARVIS Health Check - runs every 30 seconds (high frequency for monitoring)
+[[edge_runtime.cron_jobs]]
+name = "jarvis-health-check"
+schedule = "*/1 * * * *"
+function_name = "jarvis-health-check"
+
+# =====================================================
+# AUDIT FIX - Missing Edge Functions for Jarvis Tools
+# =====================================================
+
+# Qonto Reconcile - Automatic reconciliation of Qonto transactions
+[functions.qonto-reconcile]
+verify_jwt = true
+
+# Export Paie - Payroll data export (requires RH/Admin role)
+[functions.export-paie]
+verify_jwt = true
+
+# Calculate Payroll Stats - Payroll KPIs and statistics
+[functions.calculate-payroll-stats]
+verify_jwt = true
+
+# Generate Contract PDF - Contract PDF generation from templates
+[functions.generate-contract-pdf]
+verify_jwt = true
+
+# AI Health Check - Test Azure endpoint connectivity (admin only)
+[functions.ai-health-check]
+verify_jwt = true
+
+# =====================================================
+# Phase 1 - Surface Reduction Edge Functions
+# =====================================================
+
+# Email bulk actions (archive, spam, read, delete, etc.)
+[functions.email-bulk-actions]
+verify_jwt = true
+
+# Forum actions (create post, comment, upvote) - public access
+[functions.forum-actions]
+verify_jwt = true
+
+# Facturation actions (create devis, avoir) - requires auth
+[functions.facturation-actions]
+verify_jwt = true
+
+# Save quiz results - public access (quiz is public)
+
+# Formation KB Chat - RAG + GPT-5.2 streaming (public, no auth)
+
+# Formation Pulse Chat - Ephemeral channel CRUD (public, no auth)
+
+# Help me create document - AI document generation from internal sources
+[functions.help-me-create-document]
+verify_jwt = false
+
+# Fill with AI - Batch enrichment for etablissements/contacts
+[functions.fill-with-ai]
+verify_jwt = false
+
+# Nextcloud import - Recursive import of Nextcloud files into GED
+[functions.nextcloud-import]
+verify_jwt = true
+
+# Notify document/folder shared
+[functions.notify-document-shared]
+verify_jwt = true
+
+# WebDAV server - mounts documents as network drive (Basic Auth handled in code)
+[functions.webdav-server]
+verify_jwt = false
+
+# Import commercial data from PDF matrices
+[functions.import-commercial-data]
+verify_jwt = true
+
+# Meeting notes - audio upload, transcription, AI summary
+[functions.meeting-notes-process]
+verify_jwt = true
+
+# MCP Server - Claude Cowork / Desktop integration
+[functions.mcp-server]
+verify_jwt = false
+
+# Calendar & Todos push reminders (cron every 5 min)
+[functions.calendar-push-reminders]
+verify_jwt = true
+
+# AI synthesis of all communications for an etablissement
+[functions.synthesize-communication]
+verify_jwt = true
+
+# Workflow Automation Builder
+[functions.workflow-engine]
+verify_jwt = true
+
+[functions.workflow-dispatcher]
+verify_jwt = true
+
+[functions.workflow-scheduler]
+verify_jwt = true
+
+# Gamification recompute (cron + on-demand admin)
+[functions.recompute-gamification]
+verify_jwt = true
+
+
+# Sequence engine — worker A/B testing des séquences email (cron 10min)
+[functions.sequence-engine]
+verify_jwt = true
+
+# CSM Playbook engine — exécute les étapes des playbooks CSM (cron 10min)
+[functions.csm-playbook-engine]
+verify_jwt = true
+
+# Client portal — génération PDF feuille de présence (auth via service_role par le proxy marqueweb)
+
+# Roadmap IA — génération quotidienne du résumé de roadmap par DPI (cron + bouton manuel)
+[functions.generate-roadmap-summary]
+verify_jwt = true
+
+# Workflow webhook trigger — public endpoint, auth via opaque token
+[functions.workflow-webhook-trigger]
+verify_jwt = false
+
+# Workflow health alerts — cron-triggered, no JWT needed
+[functions.workflow-health-alerts]
+verify_jwt = true
+
+# Provision test accounts (admin only — auth checked inside)
+[functions.provision-test-accounts]
+verify_jwt = true
+
+# Social OAuth start (auth checked inside)
+[functions.social-oauth-start]
+verify_jwt = false
+
+# Social OAuth callback (browser redirect from provider, no JWT)
+[functions.social-oauth-callback]
+verify_jwt = false
+
+# Social sync (auth checked inside or x-cron-secret)
+[functions.social-sync]
+verify_jwt = true
+
+
+
+# Social publish (auth checked inside ou x-cron-secret depuis scheduler)
+[functions.social-publish]
+verify_jwt = true
+
+# Social scheduler (CRON */1min, x-cron-secret required)
+[functions.social-scheduler]
+verify_jwt = true
+
+# Social refresh tokens (CRON quotidien)
+[functions.social-refresh-tokens]
+verify_jwt = true
+
+# Social comment moderation (reply/hide/handle, JWT validé en code)
+[functions.social-comment-reply]
+verify_jwt = true
+
+# Social health alerts (CRON quotidien)
+[functions.social-health-alerts]
+verify_jwt = true
+
+# ============================================
+# Platform API — tri-projet (Gestion ↔ Site Web ↔ Backend Produit)
+# Auth: x-api-key (verify_jwt désactivé)
+# ============================================
+[functions.platform-health]
+verify_jwt = false
+
+[functions.platform-clients]
+verify_jwt = false
+
+[functions.platform-clients-link]
+verify_jwt = false
+
+[functions.platform-usage-events]
+verify_jwt = false
+
+[functions.platform-sso-issue]
+verify_jwt = false
+
+[functions.platform-webhooks-register]
+verify_jwt = false
+
+[functions.platform-events-dispatcher]
+verify_jwt = false
+
+# Console admin (JWT validé en code + check rôle admin)
+[functions.platform-admin]
+verify_jwt = false
+
+# Autologin HM backend (JWT validé en code + RBAC admin/direction)
+[functions.hm-backend-autologin]
+verify_jwt = true
+
+# Satisfaction V3 — endpoint public signé HMAC (verify_jwt=false, signature vérifiée en code)
+[functions.satisfaction-v3]
+verify_jwt = false
+
+# Copilot IA éditeur — auth via JWT vérifiée en code
+[functions.doc-ai-transform]
+verify_jwt = false
+
+[functions.doc-ai-copilot]
+verify_jwt = false
+
+[functions.presentation-ai-generate]
+verify_jwt = false
+
+[functions.spreadsheet-ai-formula]
+verify_jwt = false
+
+# Synthese vocale de l'assistant, appelee par
+# src/hooks/jarvis/useJarvisVoiceConference.ts:65.
+[functions.jarvis-tts]
+verify_jwt = true
+
+# Assistance IA du tableau blanc, appelee par
+# src/components/whiteboard/WhiteboardCanvas.tsx:379. Sans cette declaration la
+# fonction n'est pas servie, et le bouton echoue sans message utile.
+[functions.notes-ai-assist]
+verify_jwt = true

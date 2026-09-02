@@ -1,0 +1,53 @@
+# =====================================================================
+# Ce qui ne doit PAS partir dans le contexte de construction.
+#
+# POURQUOI CE FICHIER EXISTE
+# Le Dockerfile installe les dependances dans l'image (`npm ci`) PUIS copie le
+# depot (`COPY . .`). Sans exclusion, le `node_modules` de la machine hote
+# ecrase celui qui vient d'etre installe : des binaires compiles pour le poste
+# de developpement remplacent ceux compiles pour l'image. Le defaut est
+# silencieux quand les deux plateformes coincident, et incomprehensible quand
+# elles different.
+#
+# Mesure avant ce fichier : 1,0 Go de contexte, dont 843 Mo de node_modules,
+# transferes au demon a chaque construction.
+#
+# Le fichier d'environnement en faisait aussi partie. L'image finale ne le
+# porte pas -- elle repart d'une base nginx vierge -- mais il atterrissait dans
+# une couche intermediaire, donc dans le cache du constructeur.
+# =====================================================================
+
+# Dependances : reinstallees dans l'image, jamais reprises de l'hote.
+node_modules
+**/node_modules
+
+# Resultat de construction : recalcule dans l'image.
+dist
+dist-ssr
+
+# Secrets et configuration locale.
+.env
+.env.*
+!.env.example
+
+# Historique et outils de version.
+.git
+.gitea
+.github
+.githooks
+
+# Rapports et artefacts de mesure.
+.openrelease-report
+coverage
+playwright-report
+test-results
+*.tsbuildinfo
+*.log
+
+# Sorties de plateformes natives, sans objet pour l'image web.
+android/app/build
+ios/App/build
+
+# Bruit de systeme de fichiers.
+.DS_Store
+**/.DS_Store

@@ -1,0 +1,21 @@
+{
+  "module": "pulse",
+  "slo_group": "STANDARD",
+  "test_files": ["04_pulse_messaging.js"],
+  "endpoints": [
+    { "table": "pulse_conversations", "ops": ["READ"], "filter": "participants=cs.[<user_id>]" },
+    { "table": "pulse_messages", "ops": ["READ"], "filter": "conversation_id=eq.X" }
+  ],
+  "edge_functions": [],
+  "concurrent_writes": true,
+  "realtime_channels": [
+    { "topic": "realtime:public:pulse_messages", "events": ["INSERT"], "purpose": "live chat" }
+  ],
+  "slo": {
+    "p95_ms": 2000,
+    "p99_ms": 4000,
+    "error_rate": 0.05,
+    "checks_rate": 0.95
+  },
+  "notes": "Messagerie interne. Pagination 50 messages, GIN index sur participants requis."
+}

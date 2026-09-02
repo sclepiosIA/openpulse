@@ -1,0 +1,44 @@
+## En-têtes de sécurité pour un hébergeur statique compatible Netlify.
+##
+## À QUOI SERT CE FICHIER, ET QUAND IL NE SERT À RIEN
+## L'installation documentée sert l'application par nginx, qui IGNORE ce
+## fichier : la politique de sécurité de contenu vient alors de la balise
+## `<meta>` d'index.html, construite avec l'origine réelle de votre API. Ce
+## fichier ne compte que si vous déposez `dist/` chez un hébergeur qui honore
+## la convention `_headers` — Netlify, Cloudflare Pages et leurs semblables.
+##
+## POURQUOI IL NE PORTE PLUS DE LISTE D'HÔTES
+## Il en portait quinze, hérités de l'éditeur d'origine puis neutralisés en
+## `*.example.org` : des adresses qui n'existent chez personne. Elles
+## n'autorisaient donc rien, et surtout la liste ne contenait PAS l'origine de
+## votre API — sur un hébergeur qui honore ce fichier, l'application se
+## chargeait et n'atteignait jamais son serveur, sans message.
+##
+## CE QUE VOUS DEVEZ FAIRE
+## Remplacez VOTRE-API par l'origine de votre instance, dans les deux
+## directives ci-dessous. Exemple : https://api.mon-domaine.fr et
+## wss://api.mon-domaine.fr. Ajoutez à `frame-src` les services que vous
+## encadrez réellement, et à `img-src` ou `media-src` les origines dont vous
+## servez des fichiers.
+##
+## L'embarquement dans l'application de bureau exige tauri://localhost
+## (macOS, Linux) et http(s)://tauri.localhost (Windows) dans
+## `frame-ancestors`, qui prime sur X-Frame-Options dans les navigateurs
+## modernes — ce dernier est conservé pour les moteurs qui ignorent CSP2.
+
+/*
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  X-Frame-Options: SAMEORIGIN
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-site
+  Permissions-Policy: geolocation=(self), microphone=(self), camera=(self), payment=(), usb=(), magnetometer=(), gyroscope=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://VOTRE-API wss://VOTRE-API; frame-src 'self'; media-src 'self' blob:; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' tauri://localhost http://tauri.localhost https://tauri.localhost; upgrade-insecure-requests
+  X-XSS-Protection: 1; mode=block
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/icons/*
+  Cache-Control: public, max-age=31536000, immutable

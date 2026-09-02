@@ -1,0 +1,104 @@
+# ============================================
+# Docker Compose - OpenPulse
+# Configuration pour Supabase On-Premise
+# Le backend (PostgreSQL, Auth, Edge Functions) est géré
+# par l'installation Supabase self-hosted séparée
+# ============================================
+
+version: '3.8'
+
+services:
+  # ============================================
+  # Frontend React (Vite build)
+  # ============================================
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+      args:
+        - NODE_ENV=production
+        - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+        - VITE_SUPABASE_PUBLISHABLE_KEY=${VITE_SUPABASE_PUBLISHABLE_KEY}
+    container_name: marque-frontend
+    restart: always
+    expose:
+      - "80"
+    environment:
+      - NODE_ENV=production
+    networks:
+      - marque-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # ============================================
+  # Nginx Reverse Proxy
+  # Proxy vers Frontend + Supabase On-Premise
+  # ============================================
+  nginx:
+    image: nginx:alpine
+    container_name: marque-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.supabase.conf:/etc/nginx/nginx.conf:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+      - ./nginx/logs:/var/log/nginx
+    environment:
+      - SUPABASE_HOST=${SUPABASE_HOST:-localhost}
+      - SUPABASE_PORT=${SUPABASE_PORT:-8000}
+    depends_on:
+      frontend:
+        condition: service_healthy
+    networks:
+      - marque-network
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+  # ============================================
+  # Certbot - Renouvellement SSL Let's Encrypt
+  # ============================================
+  certbot:
+    image: certbot/certbot
+    container_name: marque-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - marque-network
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  marque-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

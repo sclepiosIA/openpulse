@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# Barriere de publication avant chaque commit.
+#
+# Activation (une fois par clone) :
+#   git config core.hooksPath .githooks
+#
+# Ce hook ne se contourne pas avec --no-verify. Si la barriere est rouge, on
+# corrige la cause : un secret, une donnee personnelle reelle, une marque
+# proscrite ou une reference d'infrastructure privee n'a pas a etre commitee,
+# meme "temporairement". Un commit fautif reste dans l'historique.
+#
+# ATTENTION AU PIEGE CORRIGE ICI. La premiere version faisait :
+#     if node scan.mjs; then ... exit 0; fi
+#     code=$?
+# Un `if` sans `else` dont la condition ECHOUE retourne 0 : $? valait donc 0 et
+# le hook laissait passer le commit tout en affichant « COMMIT REFUSE ». Un
+# garde-fou qui affiche un refus sans refuser est pire que pas de garde-fou. Le
+# code de sortie est desormais capture explicitement, et le hook se teste.
+set -uo pipefail
+
+RACINE="$(git rev-parse --show-toplevel)"
+cd "$RACINE"
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "pre-commit: node est requis pour la barriere de publication." >&2
+  exit 1
+fi
+
+RAPPORT="$(mktemp -t openrelease-precommit)"
+trap 'rm -f "$RAPPORT"' EXIT
+
+echo "pre-commit: barriere de publication…"
+node tools/openrelease/scan.mjs --cible . --severite medium >"$RAPPORT" 2>&1
+code=$?
+
+if [ "$code" -eq 0 ]; then
+  grep -E "^constats" "$RAPPORT" || true
+
+  # Second controle : les reecritures partielles. La barriere ci-dessus ne voit
+  # que ce qui reste de l'editeur ; celui-ci voit ce qui a ete transforme a
+  # moitie. Une fixture reecrite dont l'assertion ne l'est pas laisse le depot
+  # vert a la publication et rouge aux tests, pour une raison sans rapport
+  # apparent avec la publication.
+  echo "pre-commit: coherence des reecritures…"
+  node tools/openrelease/verifier-coherence.mjs . >"$RAPPORT" 2>&1
+  coherence=$?
+  if [ "$coherence" -ne 0 ]; then
+    echo >&2
+    echo "COMMIT REFUSE : reecriture partielle detectee." >&2
+    echo >&2
+    sed -n '1,40p' "$RAPPORT" >&2
+    exit "$coherence"
+  fi
+  tail -1 "$RAPPORT"
+  exit 0
+fi
+
+echo >&2
+if [ "$code" -eq 2 ]; then
+  echo "ERREUR D'OUTIL : la barriere n'a pas pu conclure." >&2
+else
+  echo "COMMIT REFUSE par la barriere de publication." >&2
+fi
+echo >&2
+sed -n '1,60p' "$RAPPORT" >&2
+echo >&2
+echo "Corrigez la cause, ou justifiez une exception ETROITE dans" >&2
+echo "tools/openrelease/scan-allowlist.json (chemin precis + extrait precis)." >&2
+exit "$code"

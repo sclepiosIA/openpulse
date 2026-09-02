@@ -1,0 +1,184 @@
+/* Charte §12 — aucune ombre a l'interieur d'un ecran. Les anciens
+ * jetons restent exposes pour compatibilite, avec une valeur neutre.
+ * Corrige le 24/08/2026 avec la mise en conformite.
+ */
+/* Email Design System Tokens */
+
+:root {
+  /* Spacing */
+  --email-spacing-compact: 8px;
+  --email-spacing-normal: 12px;
+  --email-spacing-comfortable: 16px;
+  --email-spacing-relaxed: 20px;
+
+  /* Typography */
+  --email-font-title: 15px;
+  --email-font-body: 13px;
+  --email-font-meta: 12px;
+  --email-font-small: 11px;
+
+  /* Borders */
+  --email-radius: 8px;
+  --email-radius-sm: 6px;
+  --email-radius-lg: 12px;
+
+  /* Shadows */
+  --email-shadow-hover: none;
+  --email-shadow-active: none;
+  --email-shadow-card: none;
+
+  /* Transitions */
+  --email-transition: all 0.2s ease-in-out;
+  --email-transition-fast: all 0.15s ease-in-out;
+  --email-transition-slow: all 0.3s ease-in-out;
+
+  /* Category Colors */
+  --email-category-contractuel: hsl(217, 91%, 60%);
+  --email-category-contractuel-bg: hsl(217, 91%, 95%);
+  --email-category-commercial: hsl(142, 71%, 45%);
+  --email-category-commercial-bg: hsl(142, 71%, 95%);
+  --email-category-administratif: hsl(262, 83%, 58%);
+  --email-category-administratif-bg: hsl(262, 83%, 95%);
+  --email-category-priority: hsl(0, 84%, 60%);
+  --email-category-priority-bg: hsl(0, 84%, 95%);
+
+  /* Engagement Colors */
+  --email-engagement-high: hsl(142, 71%, 45%);
+  --email-engagement-medium: hsl(38, 92%, 50%);
+  --email-engagement-low: hsl(0, 84%, 60%);
+}
+
+/* Dark mode overrides */
+.dark {
+  --email-shadow-hover: none;
+  --email-shadow-active: none;
+  --email-shadow-card: none;
+
+  --email-category-contractuel-bg: hsl(217, 91%, 15%);
+  --email-category-commercial-bg: hsl(142, 71%, 15%);
+  --email-category-administratif-bg: hsl(262, 83%, 15%);
+  --email-category-priority-bg: hsl(0, 84%, 15%);
+}
+
+/* Utility Classes */
+.email-card-hover {
+  transition: var(--email-transition);
+}
+
+.email-card-hover:hover {
+  box-shadow: none;
+  transform: translateY(-1px);
+}
+
+.email-badge-contractuel {
+  background-color: var(--email-category-contractuel-bg);
+  color: var(--email-category-contractuel);
+  border: 1px solid var(--email-category-contractuel);
+}
+
+.email-badge-commercial {
+  background-color: var(--email-category-commercial-bg);
+  color: var(--email-category-commercial);
+  border: 1px solid var(--email-category-commercial);
+}
+
+.email-badge-administratif {
+  background-color: var(--email-category-administratif-bg);
+  color: var(--email-category-administratif);
+  border: 1px solid var(--email-category-administratif);
+}
+
+.email-badge-priority {
+  background-color: var(--email-category-priority-bg);
+  color: var(--email-category-priority);
+  border: 1px solid var(--email-category-priority);
+}
+
+/* Email List Item Enhancements */
+.email-list-item {
+  padding: var(--email-spacing-comfortable);
+  border-radius: var(--email-radius);
+  transition: var(--email-transition);
+}
+
+.email-list-item:hover {
+  background-color: hsl(var(--accent) / 0.5);
+  box-shadow: none;
+}
+
+/* États de lecture améliorés - HAUTE VISIBILITÉ */
+.email-list-item.unread {
+  background-color: hsl(217 91% 95% / 0.95);
+  border-left: 5px solid hsl(217 91% 55%);
+  box-shadow: none;
+}
+
+.dark .email-list-item.unread {
+  background-color: hsl(217 91% 18% / 0.8);
+  border-left-color: hsl(217 91% 60%);
+  box-shadow: none;
+}
+
+.email-list-item.selected {
+  background-color: hsl(var(--primary) / 0.15);
+  border-left: 5px solid hsl(var(--primary));
+}
+
+/* Indicateur non lu avec glow pulsant */
+.unread-indicator {
+  position: relative;
+  display: flex;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.unread-indicator::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background-color: hsl(217 91% 55%);
+  animation: pulse-subtle 2s ease-in-out infinite;
+  opacity: 0.5;
+}
+
+.unread-indicator::after {
+  content: '';
+  position: relative;
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  background-color: hsl(217 91% 55%);
+  box-shadow: none;
+}
+
+/* Smooth animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-subtle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

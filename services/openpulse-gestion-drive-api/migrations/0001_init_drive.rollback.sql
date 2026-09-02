@@ -1,0 +1,14 @@
+-- Rollback documentaire de 0001_init_drive.sql.
+-- ATTENTION : par principe OpenPulse "non destructif", ce script N'EST PAS destiné
+-- à être exécuté en production. Il documente l'ordre de suppression si un
+-- environnement jetable (dev) doit être nettoyé.
+--
+-- drop table if exists drive_audit_logs;
+-- drop table if exists drive_sync_events;
+-- drop table if exists drive_sync_devices;
+-- drop table if exists drive_permissions;
+-- drop table if exists drive_file_versions;
+-- drop table if exists drive_files;
+-- drop table if exists drive_folders;
+-- drop table if exists drive_spaces;
+select 'rollback intentionnellement commenté — voir en-tête' as notice;

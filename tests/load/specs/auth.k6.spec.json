@@ -1,0 +1,21 @@
+{
+  "module": "auth",
+  "slo_group": "HIGH",
+  "test_files": ["01_auth_load.js"],
+  "endpoints": [
+    { "path": "/auth/v1/token", "method": "POST", "expected_status": [200, 400, 429] },
+    { "path": "/auth/v1/token?grant_type=refresh_token", "method": "POST" },
+    { "table": "users", "ops": ["READ"] }
+  ],
+  "edge_functions": [],
+  "concurrent_writes": false,
+  "realtime_channels": [],
+  "rbac_roles": ["admin", "csm", "sales", "rh", "finance", "dev", "supervisor"],
+  "slo": {
+    "p95_ms": 1500,
+    "p99_ms": 3000,
+    "error_rate": 0.05,
+    "checks_rate": 0.95
+  },
+  "notes": "Login 7 rôles + refresh. RBAC strict — admin doit voir tout, csm/sales limités."
+}

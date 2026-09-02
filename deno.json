@@ -1,0 +1,9 @@
+{
+  "nodeModulesDir": "none",
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.50.3",
+    "zod": "npm:zod@3.25.76",
+    "mcp-lite": "npm:mcp-lite@^0.10.0",
+    "hono": "npm:hono@^4.7.0"
+  }
+}

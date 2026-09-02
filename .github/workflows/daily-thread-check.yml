@@ -1,0 +1,66 @@
+name: Daily Thread Integrity Check
+
+on:
+  schedule:
+    # Run every day at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  check-and-fix-threads:
+    # Exécuteur privé : ce job ne peut pas tourner sur une bifurcation, où
+    # aucun exécuteur de ce nom n'existe. Sans cette garde il resterait en
+    # attente indéfiniment — un contributeur externe n'y lirait aucune cause.
+    # Le dépôt d'origine déclare la variable EXECUTEURS_PRIVES à « oui ».
+    if: vars.EXECUTEURS_PRIVES == 'oui'
+    runs-on: [self-hosted, large-runner]
+    timeout-minutes: 15
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - name: Check and fix thread counters
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            "$SUPABASE_URL/functions/v1/fix-thread-counters" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $SERVICE_ROLE_KEY")
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "Response: $body"
+          echo "HTTP Code: $http_code"
+
+          if [ "$http_code" != "200" ]; then
+            echo "::error::Thread integrity check failed with HTTP $http_code"
+            exit 1
+          fi
+
+          # Parse results and log summary
+          fixed=$(echo "$body" | jq -r '.summary.threads_fixed // 0')
+          deleted=$(echo "$body" | jq -r '.summary.threads_deleted // 0')
+
+          echo "✅ Thread integrity check completed"
+          echo "📊 Fixed: $fixed threads"
+          echo "🗑️ Deleted: $deleted orphan threads"
+
+      - name: Notify on failure
+        if: failure()
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Thread Integrity Check Failed',
+              body: `Daily thread integrity check failed on ${new Date().toISOString()}\n\nCheck the workflow logs for details.`,
+              labels: ['bug', 'automation', 'email']
+            })

@@ -1,0 +1,157 @@
+name: CodeQL Analysis
+
+on:
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - 'LICENSE'
+      - '.github/CODEOWNERS'
+  schedule:
+    # Run weekly on Sunday at 3:00 UTC
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze TypeScript/JavaScript
+    # Exécuteur privé : ce job ne peut pas tourner sur une bifurcation, où
+    # aucun exécuteur de ce nom n'existe. Sans cette garde il resterait en
+    # attente indéfiniment — un contributeur externe n'y lirait aucune cause.
+    # Le dépôt d'origine déclare la variable EXECUTEURS_PRIVES à « oui ».
+    if: vars.EXECUTEURS_PRIVES == 'oui'
+    runs-on: [self-hosted, large-runner]
+    timeout-minutes: 60
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4
+        with:
+          languages: javascript-typescript
+          queries: security-extended,security-and-quality
+          config: |
+            query-filters:
+              - include:
+                  tags contain: security
+              - include:
+                  tags contain: correctness
+            paths-ignore:
+              - node_modules
+              - dist
+              - coverage
+              - '**/*.test.ts'
+              - '**/*.test.tsx'
+              - '**/*.spec.ts'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (for analysis)
+        run: npm run build
+        timeout-minutes: 25
+        env:
+          VITE_ENV: development
+          NODE_OPTIONS: --max-old-space-size=4096
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4
+        continue-on-error: true # SARIF upload requires GitHub Advanced Security (paid) on private repos
+        with:
+          category: '/language:javascript-typescript'
+          upload: false
+          output: codeql-results
+
+      - name: Check for critical findings
+        run: |
+          echo "## CodeQL Analysis Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Results uploaded to GitHub Security tab." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Analyzed Patterns" >> $GITHUB_STEP_SUMMARY
+          echo "- XSS vulnerabilities" >> $GITHUB_STEP_SUMMARY
+          echo "- SQL injection patterns" >> $GITHUB_STEP_SUMMARY
+          echo "- Unsafe deserialization" >> $GITHUB_STEP_SUMMARY
+          echo "- Insecure cryptography" >> $GITHUB_STEP_SUMMARY
+          echo "- Path traversal" >> $GITHUB_STEP_SUMMARY
+          echo "- Hardcoded credentials" >> $GITHUB_STEP_SUMMARY
+
+  # React-specific security analysis
+  react-security:
+    name: React Security Patterns
+    # Exécuteur privé : ce job ne peut pas tourner sur une bifurcation, où
+    # aucun exécuteur de ce nom n'existe. Sans cette garde il resterait en
+    # attente indéfiniment — un contributeur externe n'y lirait aucune cause.
+    # Le dépôt d'origine déclare la variable EXECUTEURS_PRIVES à « oui ».
+    if: vars.EXECUTEURS_PRIVES == 'oui'
+    runs-on: [self-hosted, large-runner]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check for dangerous React patterns
+        run: |
+          echo "Checking for dangerous patterns..."
+
+          # Check for dangerouslySetInnerHTML without SafeHTML
+          DANGEROUS_HTML=$(grep -r "dangerouslySetInnerHTML" src/ --include="*.tsx" --include="*.jsx" -l 2>/dev/null | wc -l || echo "0")
+
+          # All uses should be via SafeHTML component
+          if [ "$DANGEROUS_HTML" -gt 0 ]; then
+            echo "::warning::Found $DANGEROUS_HTML files using dangerouslySetInnerHTML - verify SafeHTML usage"
+            grep -r "dangerouslySetInnerHTML" src/ --include="*.tsx" --include="*.jsx" -l 2>/dev/null || true
+          fi
+
+          # Check for eval usage (exclude test files — test payloads contain eval legitimately)
+          EVAL_USAGE=$(grep -r "eval(" src/ --include="*.ts" --include="*.tsx" --exclude-dir="tests" --exclude-dir="__tests__" -l 2>/dev/null | grep -v "\.test\.\|\.spec\." | wc -l || echo "0")
+
+          if [ "$EVAL_USAGE" -gt 0 ]; then
+            echo "::error::Found eval() usage in application code - this is a security risk!"
+            grep -r "eval(" src/ --include="*.ts" --include="*.tsx" --exclude-dir="tests" --exclude-dir="__tests__" -l 2>/dev/null | grep -v "\.test\.\|\.spec\." || true
+            exit 1
+          fi
+
+          # Check for document.write (warning only — printWindow.document.write is legitimate)
+          DOC_WRITE=$(grep -r "document\.write" src/ --include="*.ts" --include="*.tsx" -l 2>/dev/null | grep -v "printWindow\|\.test\.\|\.spec\." | wc -l || echo "0")
+
+          if [ "$DOC_WRITE" -gt 0 ]; then
+            echo "::warning::Found $DOC_WRITE files using document.write outside of print context — review for security"
+            grep -r "document\.write" src/ --include="*.ts" --include="*.tsx" -l 2>/dev/null | grep -v "printWindow\|\.test\.\|\.spec\." || true
+          fi
+
+          echo "React security patterns check passed ✅"

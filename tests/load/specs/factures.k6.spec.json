@@ -1,0 +1,21 @@
+{
+  "module": "factures",
+  "slo_group": "HIGH",
+  "test_files": ["05_factures_export.js"],
+  "endpoints": [
+    { "table": "factures", "ops": ["READ"], "purpose": "list" }
+  ],
+  "edge_functions": [
+    { "name": "generate-pdf", "method": "POST", "max_p95_ms": 10000, "purpose": "Export facture PDF (puppeteer-like)" }
+  ],
+  "concurrent_writes": false,
+  "realtime_channels": [],
+  "slo": {
+    "p95_ms": 5000,
+    "p99_ms": 12000,
+    "error_rate": 0.05,
+    "checks_rate": 0.93,
+    "pdf_export_p95_ms": 10000
+  },
+  "notes": "Export PDF est lourd (puppeteer fonctionne en cold start). 429 attendu si burst > 20/min."
+}

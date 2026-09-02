@@ -1,0 +1,47 @@
+# SEC-07a (audit 2026-06-02) — scan de secrets pré-commit, GRACIEUX :
+# ne bloque le commit que si gitleaks est installé ET détecte un secret.
+# N'empêche jamais de committer si gitleaks est absent (juste un avertissement).
+if command -v gitleaks >/dev/null 2>&1; then
+  if ! gitleaks protect --staged --redact --no-banner; then
+    echo "❌ gitleaks a détecté un secret potentiel dans les fichiers stagés — commit bloqué (SEC-07a)."
+    echo "   Retire/chiffre le secret, ou ajoute une exception dans .gitleaks.toml si faux positif."
+    exit 1
+  fi
+else
+  echo "⚠️  gitleaks non installé — scan de secrets pré-commit ignoré (SEC-07a). Install: 'brew install gitleaks'."
+fi
+
+npx lint-staged
+
+# ---------------------------------------------------------------------------
+# Barriere de publication.
+#
+# POURQUOI ELLE EST ICI, ET PLUS DANS .githooks/
+# Le depot porte DEUX systemes de crochets. `.githooks/pre-commit` lance cette
+# barriere et se presente comme « le gate de tous les instants » ; husky, lui,
+# pose `core.hooksPath = .husky/_` a l'installation des dependances. Le second
+# gagne toujours, en silence : la barriere n'a donc jamais tourne sur un poste
+# ou `npm install` avait ete lance — c'est-a-dire sur tous.
+#
+# Conséquence mesuree : gitleaks ci-dessus attrape les secrets, mais rien
+# n'attrapait une marque proscrite, une donnee personnelle reelle ou une
+# reference d'infrastructure privee — ce que `scan.mjs` est justement fait pour
+# voir. Elle est donc rapatriee dans le crochet qui s'execute reellement.
+#
+# `.githooks/pre-commit` est conserve : un clone qui pose
+# `git config core.hooksPath .githooks` obtient le meme controle.
+# ---------------------------------------------------------------------------
+if command -v node >/dev/null 2>&1; then
+  RAPPORT="$(mktemp)"
+  if ! node tools/openrelease/scan.mjs --cible . --severite medium >"$RAPPORT" 2>&1; then
+    echo "❌ Barriere de publication : constat bloquant ou eleve — commit bloque."
+    tail -30 "$RAPPORT" >&2
+    echo "   Corrigez la cause. Si c'est un faux positif, declarez-le dans" >&2
+    echo "   tools/openrelease/scan-allowlist.json (chemin precis + extrait precis)." >&2
+    rm -f "$RAPPORT"
+    exit 1
+  fi
+  rm -f "$RAPPORT"
+else
+  echo "⚠️  node absent — barriere de publication ignoree."
+fi

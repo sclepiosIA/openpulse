@@ -1,0 +1,79 @@
+# Test Hygiene — 2026-07-07
+
+## .only (BLOQUANT en CI) — 0
+
+## .skip / .todo — 74
+- `src/hooks/__tests__/useEmailThreads.test.tsx:217` — it.todo('should handle errors gracefully [needs hook-side error re-throw refactor]');
+- `src/hooks/__tests__/useTresorerieDepenses.test.tsx:166` — it.todo('should handle fetch error gracefully [needs Supabase mock chain refactor]');
+- `src/hooks/__tests__/useTresorerieDepenses.test.tsx:222` — it.todo('should return empty array on error (fallback) [needs Supabase mock chain refactor]');
+- `src/hooks/__tests__/useTresorerieRevenus.test.tsx:137` — it.todo('should handle fetch error gracefully [needs Supabase mock chain refactor]');
+- `tests/e2e/api-rpc-coverage.spec.ts:89` — test.skip(true, `Compte E2E indisponible : ${error.message}`);
+- `tests/e2e/api-rpc-coverage.spec.ts:121` — test.skip(true, `Compte E2E indisponible : ${e.message}`);
+- `tests/e2e/api-rpc-coverage.spec.ts:135` — test.skip(true, `Compte E2E indisponible : ${e.message}`);
+- `tests/e2e/api-rpc-coverage.spec.ts:140` — test.skip(true, 'RPC get_current_user_role absente.');
+- `tests/e2e/audit-coverage.spec.ts:75` — test.skip(true, 'Bouton « Nouveau ticket » non visible pour ce rôle/session.');
+- `tests/e2e/audit-coverage.spec.ts:131` — test.skip(true, 'Bouton de création prospect non visible pour ce rôle/session.');
+- `tests/e2e/breadcrumb-coverage.spec.ts:32` — test.skip(true, 'Breadcrumb non exposé sur cette route');
+- `tests/e2e/crud-calendar-coverage.spec.ts:9` — test.skip(process.env.RUN_CRUD_E2E !== 'true', 'RUN_CRUD_E2E != true');
+- `tests/e2e/crud-calendar-deep-coverage.spec.ts:10` — test.skip(process.env.RUN_CRUD_E2E !== 'true', 'RUN_CRUD_E2E != true');
+- `tests/e2e/crud-contact-coverage.spec.ts:9` — test.skip(process.env.RUN_CRUD_E2E !== 'true', 'RUN_CRUD_E2E != true');
+- `tests/e2e/crud-contact-coverage.spec.ts:20` — test.skip(true, 'Aucun établissement disponible');
+- `tests/e2e/crud-contact-coverage.spec.ts:32` — test.skip(true, 'Bouton ajout contact introuvable');
+- `tests/e2e/crud-coverage.spec.ts:47` — test.skip(true, 'CTA création tâche non exposé pour cette session.');
+- `tests/e2e/crud-coverage.spec.ts:58` — test.skip(true, 'Formulaire de création tâche non trouvé.');
+- `tests/e2e/crud-coverage.spec.ts:97` — test.skip(true, 'Composer Pulse non trouvé sur cette session.');
+- `tests/e2e/crud-coverage.spec.ts:120` — test.skip(true, 'CTA création événement non exposé.');
+- `tests/e2e/crud-coverage.spec.ts:146` — test.skip(true, 'CTA Nouveau prospect non exposé.');
+- `tests/e2e/crud-coverage.spec.ts:168` — test.skip(true, 'CTA ajout produit non exposé.');
+- `tests/e2e/crud-coverage.spec.ts:188` — test.skip(true, 'CTA upload document non exposé.');
+- `tests/e2e/crud-email-draft-coverage.spec.ts:9` — test.skip(process.env.RUN_CRUD_E2E !== 'true', 'RUN_CRUD_E2E != true');
+- `tests/e2e/crud-note-coverage.spec.ts:9` — test.skip(process.env.RUN_CRUD_E2E !== 'true', 'RUN_CRUD_E2E != true');
+- `tests/e2e/crud-note-coverage.spec.ts:20` — test.skip(true, 'Aucun établissement disponible'); return;
+- `tests/e2e/crud-note-coverage.spec.ts:31` — test.skip(true, 'Bouton note introuvable'); return;
+- `tests/e2e/crud-prospect-coverage.spec.ts:12` — test.skip(process.env.RUN_CRUD_E2E !== 'true', 'RUN_CRUD_E2E != true');
+- `tests/e2e/crud-task-coverage.spec.ts:9` — test.skip(process.env.RUN_CRUD_E2E !== 'true', 'RUN_CRUD_E2E != true');
+- `tests/e2e/crud-task-deep-coverage.spec.ts:12` — test.skip(process.env.RUN_CRUD_E2E !== 'true', 'RUN_CRUD_E2E != true');
+- `tests/e2e/dblclick-coverage.spec.ts:20` — test.skip(true, `Pas de ligne sur ${path}`); return;
+- `tests/e2e/destructive-confirm-coverage.spec.ts:20` — test.skip(true, `Pas de bouton destructif sur ${path}`); return;
+- `tests/e2e/dialog-a11y-coverage.spec.ts:19` — test.skip(true, 'Aucun bouton de création trouvé');
+- `tests/e2e/dialog-a11y-coverage.spec.ts:27` — test.skip(true, 'Pas de dialog ouvert');
+- `tests/e2e/dialogs-coverage.spec.ts:40` — test.skip(true, `Aucun trigger visible pour ${c.label}`);
+- `tests/e2e/dropdowns-coverage.spec.ts:25` — test.skip(true, `Trigger ${rx} introuvable`);
+- `tests/e2e/email-composer-coverage.spec.ts:42` — test.skip(true, 'Bouton composer non visible');
+- `tests/e2e/entity-detail-coverage.spec.ts:43` — test.skip(true, `Liste ${e.list} vide dans la sandbox`);
+- `tests/e2e/entity-detail-coverage.spec.ts:48` — test.skip(true, 'Aucun lien de détail exploitable');
+- `tests/e2e/etablissement-tabs-coverage.spec.ts:36` — test.skip(true, 'Aucun établissement dans la sandbox');
+- `tests/e2e/export-buttons-coverage.spec.ts:15` — test.skip(true, `Pas de bouton export sur ${path}`); return;
+- `tests/e2e/exports-coverage.spec.ts:35` — test.skip(true, `Pas de bouton export sur ${path}`);
+- `tests/e2e/jarvis-coverage.spec.ts:24` — test.skip(true, 'Trigger Jarvis non visible');
+- `tests/e2e/logout-coverage.spec.ts:23` — test.skip(true, 'Menu utilisateur non identifiable');
+- `tests/e2e/logout-coverage.spec.ts:35` — test.skip(true, 'Item logout non trouvé');
+- `tests/e2e/mobile-coverage.spec.ts:81` — test.skip(true, 'Menu hamburger non trouvé (peut être déjà ouvert).');
+- `tests/e2e/modules-coverage.spec.ts:11` — * Les tests `test.skip()` proprement quand un CTA n'est pas exposé pour
+- `tests/e2e/navigation-coverage.spec.ts:79` — test.skip(true, `Listing ${listing} vide pour la session — skip propre.`);
+- `tests/e2e/navigation-coverage.spec.ts:133` — test.skip(true, `Pas de champ recherche visible sur ${path}.`);
+- `tests/e2e/notifications-coverage.spec.ts:24` — test.skip(true, 'Pas de cloche visible (header différent)');
+- `tests/e2e/parametres-tabs-coverage.spec.ts:17` — if (count === 0) { test.skip(true, 'Pas d\'onglets sur /parametres'); return; }
+- `tests/e2e/pulse-coverage.spec.ts:32` — test.skip(true, 'Pulse FAB non visible (peut-être masqué)');
+- `tests/e2e/rbac-matrix-allowed.spec.ts:21` — test.skip(!isRbacMatrixEnabled(), 'RUN_RBAC_MATRIX != true');
+- `tests/e2e/rbac-matrix-allowed.spec.ts:29` — test.skip(true, `Credentials manquants pour le rôle ${role}`);
+- `tests/e2e/rbac-matrix-full.spec.ts:27` — test.skip(!isRbacMatrixEnabled(), 'RUN_RBAC_MATRIX != true');
+- `tests/e2e/rbac-matrix-full.spec.ts:35` — test.skip(true, `Credentials manquants pour le rôle ${role}`);
+- `tests/e2e/search-filters-coverage.spec.ts:47` — test.skip(true, `Aucune search-box visible sur ${t.path}`);
+- `tests/e2e/search-focus-coverage.spec.ts:19` — test.skip(true, `Aucun input recherche trouvé sur ${t.path}`);
+- `tests/e2e/service-worker-coverage.spec.ts:20` — if (!registered) test.skip(true, 'Service Worker non enregistré (probablement dev mode)');
+- `tests/e2e/sidebar-collapse-coverage.spec.ts:11` — test.skip(true, 'Toggle sidebar introuvable'); return;
+- `tests/e2e/sidebar-links-coverage.spec.ts:23` — test.skip(true, 'Sidebar non visible (mobile ?)');
+- `tests/e2e/sitemap-coverage.spec.ts:9` — if (resp.status() === 404) test.skip(true, 'sitemap.xml absent');
+- `tests/e2e/submit-not-blocked-coverage.spec.ts:20` — if (count === 0) { test.skip(true, `Aucun submit sur ${path}`); return; }
+- `tests/e2e/table-sort-coverage.spec.ts:20` — if (count === 0) { test.skip(true, `Aucun header triable sur ${path}`); return; }
+- `tests/e2e/tabs-coverage.spec.ts:72` — test.skip(true, `Pas d'onglets visibles sur ${path}.`);
+- `tests/e2e/tabs-coverage.spec.ts:103` — test.skip(true, 'Aucun établissement dans la liste — skip.');
+- `tests/e2e/theme-coverage.spec.ts:23` — test.skip(true, 'Pas de toggle thème exposé (header différent)');
+- `tests/e2e/tooltip-coverage.spec.ts:19` — test.skip(true, `Pas de bouton aria-label sur ${path}`); return;
+- `tests/e2e/views-toggle-coverage.spec.ts:45` — test.skip(true, `Aucun toggle de vue trouvé sur ${v.path}`);
+- `tests/e2e/visual-regression-coverage.spec.ts:34` — test.skip(process.env.RUN_VISUAL !== 'true', 'RUN_VISUAL != true');
+- `tests/e2e/visual-regression-coverage.spec.ts:36` — test.skip(({ browserName }) => browserName !== 'chromium', 'visual: chromium only');
+- `tests/e2e/workflows-coverage.spec.ts:70` — test.skip(true, 'Inbox vide — skip.');
+- `tests/e2e/workflows-coverage.spec.ts:165` — test.skip(true, 'Liste people vide — skip.');
+- `tests/e2e/workflows-coverage.spec.ts:206` — test.skip(true, 'Aucun établissement après recherche — skip.');

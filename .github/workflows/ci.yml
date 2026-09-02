@@ -1,0 +1,229 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, master]
+  schedule:
+    # Hebdomadaire — lundi 02:00 UTC (dev IA-first : plus de run à chaque push)
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+jobs:
+  test:
+    # Exécuteur privé : ce job ne peut pas tourner sur une bifurcation, où
+    # aucun exécuteur de ce nom n'existe. Sans cette garde il resterait en
+    # attente indéfiniment — un contributeur externe n'y lirait aucune cause.
+    # Le dépôt d'origine déclare la variable EXECUTEURS_PRIVES à « oui ».
+    if: vars.EXECUTEURS_PRIVES == 'oui'
+    runs-on: [self-hosted, large-runner]
+
+    strategy:
+      matrix:
+        node-version: [22]
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit dependencies (SEC-07b — bloque high/critical)
+        run: npm audit --audit-level=high --omit=dev
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Type-check (SEC-07b — bloquant, audit Fable 5 · action 30.6)
+        run: npm run type-check
+
+      - name: Check test hygiene (no .only in test files)
+        run: node scripts/check-test-hygiene.mjs
+
+      - name: Check `any` budget (DEBT-01)
+        run: node scripts/any-budget.mjs
+
+      - name: Check global `any` budget (DEBT-01 — audit Fable 5 · 90.4)
+        run: node scripts/any-budget-global.mjs
+
+      - name: Check god-files budget (DEBT-02)
+        run: node scripts/file-size-budget.mjs
+
+      - name: Check components→Supabase budget (Chantier #4)
+        run: node scripts/components-supabase-budget.mjs
+
+      - name: Check pages→Supabase budget (audit Fable 5 · 180.1)
+        run: node scripts/pages-supabase-budget.mjs
+
+      - name: Audit Edge Functions (verify_jwt + service_role)
+        run: node scripts/audit-edge-functions-public-service-role.mjs
+
+      - name: Guard critical Edge tests (audit Fable 5 · 90.5)
+        run: node scripts/edge-critical-tests-budget.mjs
+
+      - name: Check documentation freshness (audit Fable 5 · 180.5, warn-only)
+        run: node scripts/doc-freshness-budget.mjs --warn
+
+      - name: Check lockfile uniqueness (npm only)
+        run: node scripts/lockfile-guard.mjs
+
+      - name: Check codecov absence (audit Fable 5 · 30.4)
+        run: node scripts/codecov-absence-guard.mjs
+
+      - name: Check Web Vitals wiring (Phase 4 obs-CI)
+        run: node scripts/web-vitals-budget.mjs
+
+      - name: Check runtime observability wiring (Phase 4 obs-CI)
+        run: node scripts/runtime-observability-budget.mjs
+
+      - name: Audit Realtime subscriptions (stability)
+        run: node scripts/audit-realtime-subscriptions.mjs
+
+      - name: Audit lazy imports use lazyWithRetry (stability)
+        run: node scripts/audit-lazy-imports.mjs
+
+      - name: Audit numeric safety report (stability, non-blocking)
+        run: node scripts/audit-numeric-safety.mjs
+
+      - name: Audit PageDataState coverage report (stability, non-blocking)
+        run: node scripts/audit-page-data-state.mjs
+
+      - name: Run tests with coverage
+        id: tests
+        run: npm run test:coverage
+        env:
+          # La suite CRM est très large et la collecte V8 garde beaucoup d'objets en mémoire.
+          # Sur le runner macOS, 2 forks à 8 Go finissent par OOM ; un fork plus large est
+          # plus lent mais stable pour le gate PR.
+          VITEST_MAX_FORKS: 1
+          VITEST_FORK_HEAP_MB: 12288
+
+      - name: Extract coverage percentage
+        id: coverage
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            COVERAGE=$(cat coverage/coverage-summary.json | jq '.total.lines.pct')
+            echo "coverageLinesPct=${COVERAGE}" >> $GITHUB_OUTPUT
+            echo "📊 Coverage réelle mesurée : ${COVERAGE}%"
+          else
+            echo "coverageLinesPct=0" >> $GITHUB_OUTPUT
+            echo "::warning::coverage-summary.json introuvable — couverture publiée à 0%"
+          fi
+
+      - name: Regenerate coverage badge (audit Fable 5 · 30.3)
+        run: node scripts/update-coverage-badge.mjs
+
+      - name: Upload coverage artifact (audit Fable 5 · action 30.3)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: coverage-report
+          path: |
+            coverage/coverage-summary.json
+            coverage/coverage-final.json
+            coverage/lcov.info
+            coverage/lcov-report/
+          retention-days: 30
+
+      - name: Run accessibility tests
+        run: npx vitest run --config vitest-a11y.config.ts
+
+      - name: Build application
+        run: npm run build
+
+      - name: Check bundle size
+        run: |
+          echo "📦 Checking bundle size..."
+          BUNDLE_SIZE=$(find dist/assets -name "*.js" -exec stat -c%s {} + 2>/dev/null | awk '{sum+=$1} END {print sum}' || find dist/assets -name "*.js" -exec stat -f%z {} + | awk '{sum+=$1} END {print sum}')
+          BUNDLE_SIZE_KB=$((BUNDLE_SIZE / 1024))
+          BUNDLE_SIZE_MB=$(echo "scale=2; $BUNDLE_SIZE/1024/1024" | bc)
+          echo "Bundle size: ${BUNDLE_SIZE_KB}KB (${BUNDLE_SIZE_MB}MB)"
+
+          # Threshold: 3MB raw JS
+          THRESHOLD=$((3 * 1024 * 1024))
+          if [ "$BUNDLE_SIZE" -gt "$THRESHOLD" ]; then
+            echo "::warning::⚠️ Bundle size exceeds 3MB threshold! Current: ${BUNDLE_SIZE_MB}MB"
+          else
+            echo "✅ Bundle size OK: ${BUNDLE_SIZE_MB}MB < 3MB"
+          fi
+
+      - name: Commit updated coverage badge
+        uses: stefanzweifel/git-auto-commit-action@b863ae1933cb653a53c021fe36dbb774e1fb9403 # v5
+        with:
+          branch: ${{ github.ref }}
+          file_pattern: badges/coverage.svg
+          commit_message: 'chore(ci): update coverage badge'
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright E2E — smoke (PR gate, < 15 min, audit Fable 5 · 180.4)
+        if: github.event_name == 'pull_request'
+        run: npx playwright test --config=playwright.smoke.config.ts
+        env:
+          CI: true
+
+      - name: Run Playwright E2E — full (nightly/manual)
+        if: github.event_name != 'pull_request'
+        run: npx playwright test
+        env:
+          CI: true
+
+      - name: Start preview server for Lighthouse
+        run: npx vite preview --port 8080 &
+
+      - name: Wait for preview server (Lighthouse)
+        run: |
+          echo "⏳ Waiting for preview server on port 8080..."
+          for i in $(seq 1 30); do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080 | grep -q "200"; then
+              echo "✅ Server is ready"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "❌ Server failed to start within 30 seconds"
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Run Lighthouse CI
+        run: |
+          npm install -g @lhci/cli@0.12.x
+          lhci autorun
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+
+      - name: Upload test results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 30
+
+      - name: Upload Lighthouse results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: lighthouse-results
+          path: .lighthouseci/
+          retention-days: 30

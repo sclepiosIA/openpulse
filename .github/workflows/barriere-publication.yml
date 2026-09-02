@@ -1,0 +1,124 @@
+name: Barrière de publication
+
+# ---------------------------------------------------------------------------
+# La chaîne courte, et la seule que doive regarder un contributeur externe.
+#
+# Elle n'utilise AUCUN secret et tourne sur des exécuteurs hébergés : elle
+# fonctionne donc à l'identique sur une bifurcation, ce qui n'est pas le cas
+# des workflows hérités de l'amont. C'est délibéré — une chaîne qu'un
+# contributeur ne peut pas faire passer chez lui ne lui apprend rien, et une
+# chaîne rouge en permanence finit par n'être plus lue du tout.
+#
+# Ce que la barrière contrôle, dans l'ordre du moins cher au plus cher :
+#   1. secrets, données personnelles, marques, infrastructure privée
+#   2. réécritures partielles
+#   3. registre d'environnement contre le code
+#   4. versions d'images citées contre la composition
+#   5. liens du parcours d'installation
+#   6. portabilité de la chaîne, espaces de stockage, modèle d'environnement
+#   7. licences de l'arbre de production
+#   8. contrats de construction
+#   9. typage, puis construction
+# ---------------------------------------------------------------------------
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: barriere-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  barriere:
+    name: Barrière et cohérence
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # La barrière interroge git pour respecter .gitignore : un clone
+          # superficiel suffit, mais il lui faut bien un dépôt.
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci --no-audit --no-fund
+
+      - name: Secrets, données personnelles, marques, infrastructure
+        run: node tools/openrelease/scan.mjs --cible . --severite medium --tout
+
+      - name: Réécritures partielles
+        run: node tools/openrelease/verifier-coherence.mjs .
+
+      # Le manifeste part avec le dépôt. Une règle qui masque une adresse doit
+      # l'écrire pour la désigner : sans ce contrôle, publier le manifeste
+      # revenait à publier ce qu'il sert à cacher.
+      - name: Règles sensibles hors du dépôt publié
+        run: node tools/openrelease/verifier-manifeste-prive.mjs .
+
+      - name: Registre d'environnement contre le code
+        run: node tools/openrelease/verifier-registre-env.mjs .
+
+      - name: Versions d'images citées par la documentation
+        run: node tools/openrelease/verifier-versions-images.mjs .
+
+      - name: Liens du parcours d'installation
+        run: node tools/openrelease/verifier-liens.mjs .
+
+      # Les quatre contrôles ci-dessous manquaient. `gate.sh` en lance neuf, la
+      # chaîne n'en lançait que cinq : quatre ne tournaient donc QUE sur le poste
+      # de qui pensait à les appeler à la main. Un contrôle qu'aucune chaîne
+      # n'exécute finit par diverger sans que personne ne l'apprenne.
+      - name: Portabilité de la chaîne d'intégration
+        run: node tools/openrelease/verifier-ci-portable.mjs .
+
+      - name: Espaces de stockage déclarés contre le code
+        run: node tools/openrelease/verifier-espaces-stockage.mjs .
+
+      - name: Modèle d'environnement
+        run: node tools/openrelease/verifier-modele-env.mjs .
+
+      - name: Licences de l'arbre de production
+        run: node tools/openrelease/auditer-licences.mjs .
+
+      # Au seuil PARTAGE, pas publication : le dépôt doit rester remettable à un
+      # tiers — licence, attributions, documents d'entrée, métadonnées de paquet.
+      # Le seuil supérieur exige en plus une adresse de signalement relevée par
+      # une personne, ce qui est une décision et non un correctif ; il se
+      # contrôle à la main avec --publication.
+      - name: Prêt à être partagé
+        run: node tools/openrelease/verifier-pret-a-publier.mjs .
+
+      # La suite de contrats vérifie les invariants que le typage ne voit pas —
+      # dont la cohérence entre les arguments de construction et le générateur
+      # d'empreinte. Elle était rouge depuis un moment, sans que rien ne la
+      # lance : `ARG GSI_GIT_SHA` d'un côté, `OPENPULSE_GIT_SHA` attendu de
+      # l'autre. Une construction incapable de produire son empreinte, invisible.
+      - name: Contrats de construction
+        run: npm run test:contract
+
+      # `tsc --noEmit -p tsconfig.json` ne vérifiait RIEN : ce fichier n'a ni
+      # `include` ni `files`, il ne fait que référencer les sous-projets, et
+      # sans `--build` les références sont ignorées. Mesuré : 0 fichier de src/
+      # lu, contre 2464 avec la bonne invocation. Six erreurs réelles vivaient
+      # dans le dépôt sans que personne les voie, en local comme en CI.
+      - name: Typage
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: npm run type-check
+
+      - name: Construction
+        env:
+          OPENPULSE_GIT_SHA: ${{ github.sha }}
+        run: npm run build
